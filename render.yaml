@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: friends-poker-invite
+    runtime: node
+    plan: free
+    buildCommand: node -e "console.log('No build step required')"
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: INVITE_CODE
+        sync: false
