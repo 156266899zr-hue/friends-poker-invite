@@ -2,7 +2,7 @@ import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {networkInterfaces} from 'node:os';
 import {createHash,randomInt,timingSafeEqual} from 'node:crypto';
-import {room,player,start,act,view,legal} from './engine.mjs';
+import {room,player,start,act,view,legal,botDecision} from './engine.mjs';
 const rooms=new Map(),port=Number(process.env.PORT||8787);const root=new URL('./',import.meta.url);const MAX_PLAYERS=8,ROOM_MAX_MS=5*60*60*1000;
 const invite=String(process.env.INVITE_CODE||'').trim();
 const inviteToken=invite?createHash('sha256').update(invite).digest('hex'):'';
@@ -35,5 +35,5 @@ const server=http.createServer(async(req,res)=>{try{
  const names={'/':'index.html','/app.js':'app.js','/style.css':'style.css'};if(!names[url.pathname]){res.writeHead(404);return res.end('Not found');}
  res.writeHead(200,{'Content-Type':url.pathname.endsWith('.js')?'text/javascript; charset=utf-8':url.pathname.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",'Cache-Control':'no-cache'});res.end(await readFile(new URL(names[url.pathname],root)));
  }catch(e){send(res,400,{error:e.message||'请求失败'});}});
-setInterval(()=>{for(const [code,r] of rooms){if(Date.now()>=r.expiresAt){rooms.delete(code);continue;}if(['waiting','done'].includes(r.phase))continue;const p=r.players[r.turn];if(!p)continue;if(p.bot&&Date.now()>r.deadline-43500){const l=legal(r,p);act(r,p.id,l.call>p.stack*.4&&randomInt(4)===0?'fold':'call');}else if(Date.now()>r.deadline)act(r,p.id,legal(r,p).call?'fold':'call');}},500).unref();
+setInterval(()=>{for(const [code,r] of rooms){if(Date.now()>=r.expiresAt){rooms.delete(code);continue;}if(['waiting','done'].includes(r.phase))continue;const p=r.players[r.turn];if(!p)continue;if(p.bot&&Date.now()>r.deadline-43500){const move=botDecision(r,p);act(r,p.id,move.type,move.amount);}else if(Date.now()>r.deadline)act(r,p.id,legal(r,p).call?'fold':'call');}},500).unref();
 server.listen(port,'0.0.0.0',()=>{console.log(`Local: http://localhost:${port}`);for(const list of Object.values(networkInterfaces()))for(const n of list||[])if(n.family==='IPv4'&&!n.internal)console.log(`LAN: http://${n.address}:${port}`);});

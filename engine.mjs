@@ -46,6 +46,20 @@ function advance(r,from){
  r.turn=next(r,from,p=>r.pending.includes(p.id));r.deadline=Date.now()+45000;
 }
 export function legal(r,p){const call=Math.min(p.stack,Math.max(0,r.high-p.bet));return {call,min:Math.min(p.bet+p.stack,r.high+r.minRaise),max:p.bet+p.stack,raise:(p.lastHigh===null||r.high-p.lastHigh>=r.minRaise)&&p.bet+p.stack>r.high&&r.players.some(q=>q!==p&&can(q))};}
+export function botStrength(r,p){
+ const cards=p.cards||[];if(cards.length<2)return 0;
+ if(!r.board.length){const ranks=cards.map(c=>c%13+2).sort((a,b)=>b-a),[high,low]=ranks,suited=Math.floor(cards[0]/13)===Math.floor(cards[1]/13),gap=high-low;let value;
+  if(high===low)value=.52+(high-2)/12*.43;else{value=(high+low-4)/24*.45;if(high>=11)value+=.18;if(low>=10)value+=.1;if(suited)value+=.07;if(gap<=1)value+=.06;else if(gap>=5)value-=.06;}return Math.max(.05,Math.min(.98,value));}
+ const hand=score([...cards,...r.board]),base=[.18,.42,.62,.7,.78,.82,.9,.97,1][hand[0]]??.18;return Math.min(1,base+(hand[1]||0)/300);
+}
+export function botDecision(r,p,roll=randomInt(100)){
+ const l=legal(r,p),strength=botStrength(r,p),pot=Math.max(1,r.players.reduce((n,q)=>n+q.total,0)),potPrice=l.call/pot;
+ if(l.call&&strength<.28&&(l.call>20||potPrice>.18))return {type:'fold'};
+ if(l.call&&strength<.43&&(l.call>p.stack*.15||potPrice>.45))return {type:'fold'};
+ const wantsRaise=l.raise&&((strength>.78&&roll<70)||(strength>.62&&roll<25)||(l.call===0&&strength>.52&&roll<18));
+ if(wantsRaise){const shove=strength>.94&&(p.stack<=pot*2||roll<8),size=Math.max(r.minRaise,Math.round(Math.max(40,pot*.5)/10)*10),amount=shove?l.max:Math.min(l.max,Math.max(l.min,r.high+size));return {type:'raise',amount};}
+ return {type:'call'};
+}
 export function act(r,id,type,amount){
  const p=r.players[r.turn];if(!p||p.id!==id||['done','waiting'].includes(r.phase))throw Error('还没有轮到你');const l=legal(r,p);
  if(type==='fold'){p.folded=true;p.action='弃牌';}
