@@ -6,3 +6,8 @@
 .seat .total{font-size:12px;line-height:1.5;color:#c7d6c9}.seat .total strong{font-size:14px;color:#f1dfb5;font-weight:600}.seat .balance{margin-top:3px}
 
 #settlement{padding:18px;margin-bottom:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}#settlement h3{margin:0 0 12px;font-size:17px}.result-row{display:grid;grid-template-columns:1fr auto;gap:5px 12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px}.result-row small{display:block;color:var(--muted);font-size:12px}.result-net{font-size:19px;font-weight:650}.won .result-net{color:var(--gold)}.lost .result-net{color:#ffb6a4}.result-detail{grid-column:1/-1;color:var(--muted);font-size:13px}#resultDialog{max-height:85vh;overflow:auto}#resultDialog h2{margin:0}#resultDialog .primary{margin-top:18px;width:100%}
+
+/* 八人桌座位：以当前玩家为底部，顺时针排列。 */
+.seat.s0{left:50%;top:89%}.seat.s1{left:23%;top:79%}.seat.s2{left:10%;top:52%}.seat.s3{left:23%;top:20%}.seat.s4{left:50%;top:10%}.seat.s5{left:77%;top:20%}.seat.s6{left:90%;top:52%}.seat.s7{left:77%;top:79%}
+.seat .kickbot{margin-top:6px;padding:3px 8px;border-color:#75534c;background:#432d29;color:#ffd1c6;font-size:11px}
+@media(max-width:650px){.seat.s0{left:50%;top:91%}.seat.s1{left:26%;top:82%}.seat.s2{left:16%;top:55%}.seat.s3{left:25%;top:24%}.seat.s4{left:50%;top:10%}.seat.s5{left:75%;top:24%}.seat.s6{left:84%;top:55%}.seat.s7{left:74%;top:82%}.seat .kickbot{padding:2px 5px;font-size:10px}}
