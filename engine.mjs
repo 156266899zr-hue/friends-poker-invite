@@ -10,7 +10,9 @@ export function score(cards){
  }return best;
 }
 export function compare(a,b){for(let i=0;i<5+1;i++)if((a[i]||0)!==(b[i]||0))return (a[i]||0)-(b[i]||0);return 0;}
-export function player(name,bot=false,deviceId=''){return {id:randomUUID(),name,bot,deviceId,stack:2000,cards:[],bet:0,total:0,folded:false,inHand:false,lastSeen:Date.now(),pendingKick:false};}
+export const cardBacks=['classic','ivory','midnight','ink'];
+export function cleanCardBack(value){return cardBacks.includes(value)?value:'classic';}
+export function player(name,bot=false,deviceId='',cardBack='classic'){return {id:randomUUID(),name,bot,deviceId,cardBack:cleanCardBack(cardBack),stack:2000,cards:[],bet:0,total:0,folded:false,inHand:false,lastSeen:Date.now(),pendingKick:false};}
 export function room(code,host){return {code,host:host.id,players:[host],phase:'waiting',board:[],hand:0,dealer:-1,turn:-1,high:0,minRaise:20,pending:[],logs:[],result:[],updated:Date.now()};}
 export function log(r,t){r.logs.unshift(t);r.logs=r.logs.slice(0,2000);r.history??=[];r.history.push({hand:r.hand,phase:r.phase,text:t,time:Date.now()});r.history=r.history.filter(e=>e.hand>=r.hand-29);}
 const next=(r,from,fn)=>{for(let n=1;n<=r.players.length;n++){let i=(from+n)%r.players.length;if(fn(r.players[i]))return i;}return -1;};
@@ -72,4 +74,4 @@ export function act(r,id,type,amount){
  }else throw Error('无效操作');
  log(r,`${p.name}：${p.action}`);r.pending=r.pending.filter(x=>x!==id);advance(r,r.turn);
 }
-export function view(r,id){const p=r.players.find(p=>p.id===id),now=Date.now();return {code:r.code,host:r.host,phase:r.phase,hand:r.hand,board:r.board,dealer:r.dealer,turn:r.turn,deadline:r.deadline,expiresAt:r.expiresAt||0,high:r.high,pot:r.players.reduce((s,p)=>s+p.total,0),result:r.result,settlement:r.phase==='done'?r.settlement||[]:[],lastSettlement:r.lastSettlement||null,logs:r.logs,history:r.history||[],me:id,legal:p?legal(r,p):null,players:r.players.map(p=>({id:p.id,name:p.name,bot:p.bot,online:p.bot||now-p.lastSeen<5000,pendingKick:!!p.pendingKick,stack:p.stack,bet:p.bet,total:p.total,inHand:p.inHand,folded:p.folded,action:p.action,cards:p.id===id||(r.phase==='done'&&r.reveal&&active(p))?p.cards:p.cards.map(()=>-1)}))};}
+export function view(r,id){const p=r.players.find(p=>p.id===id),now=Date.now();return {code:r.code,host:r.host,phase:r.phase,hand:r.hand,board:r.board,dealer:r.dealer,turn:r.turn,deadline:r.deadline,expiresAt:r.expiresAt||0,high:r.high,pot:r.players.reduce((s,p)=>s+p.total,0),result:r.result,settlement:r.phase==='done'?r.settlement||[]:[],lastSettlement:r.lastSettlement||null,logs:r.logs,history:r.history||[],me:id,legal:p?legal(r,p):null,players:r.players.map(p=>({id:p.id,name:p.name,bot:p.bot,cardBack:cleanCardBack(p.cardBack),online:p.bot||now-p.lastSeen<5000,pendingKick:!!p.pendingKick,stack:p.stack,bet:p.bet,total:p.total,inHand:p.inHand,folded:p.folded,action:p.action,cards:p.id===id||(r.phase==='done'&&r.reveal&&active(p))?p.cards:p.cards.map(()=>-1)}))};}
