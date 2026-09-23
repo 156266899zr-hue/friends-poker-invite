@@ -2,10 +2,11 @@ import {DatabaseSync} from 'node:sqlite';
 import {mkdirSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {argon2,randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
+import * as crypto from 'node:crypto';
+import {scrypt,randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {promisify} from 'node:util';
 
-const derive=promisify(argon2);
+const deriveScrypt=promisify(scrypt),deriveArgon2=crypto.argon2?promisify(crypto.argon2):null;
 export const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const cardBacks=['classic','ivory','midnight','ink'];
@@ -16,10 +17,10 @@ function nickname(value){if(typeof value!=='string'||!value.trim()||value.trim()
 function cardBack(value){if(!cardBacks.includes(value))fail(400,'卡背皮肤不存在');return value;}
 function username(value){if(typeof value!=='string'||! /^[a-zA-Z0-9_]{3,32}$/.test(value))fail(400,'账号须为 3–32 位字母、数字或下划线');return value.toLowerCase();}
 async function hash(value,salt=randomBytes(16).toString('hex')){
- const result=await derive('argon2id',{message:value,nonce:Buffer.from(salt,'hex'),parallelism:1,tagLength:32,memory:65536,passes:3});
- return `argon2id:${salt}:${result.toString('hex')}`;
+ const result=await deriveScrypt(value,Buffer.from(salt,'hex'),32,{N:16384,r:8,p:1,maxmem:64*1024*1024});
+ return `scrypt:${salt}:${result.toString('hex')}`;
 }
-async function verify(value,stored){const [,salt,key]=stored.split(':');const actual=(await hash(value,salt)).split(':')[2];return timingSafeEqual(Buffer.from(actual,'hex'),Buffer.from(key,'hex'));}
+async function verify(value,stored){const [algorithm,salt,key]=stored.split(':');let actual;if(algorithm==='scrypt')actual=(await hash(value,salt)).split(':')[2];else if(algorithm==='argon2id'&&deriveArgon2)actual=(await deriveArgon2('argon2id',{message:value,nonce:Buffer.from(salt,'hex'),parallelism:1,tagLength:32,memory:65536,passes:3})).toString('hex');else return false;const actualBuffer=Buffer.from(actual,'hex'),keyBuffer=Buffer.from(key||'','hex');return actualBuffer.length===keyBuffer.length&&timingSafeEqual(actualBuffer,keyBuffer);}
 
 export async function accounts(){
  const path=resolve(process.env.DATA_DIR||fileURLToPath(new URL('./data/',import.meta.url)),'accounts.sqlite');

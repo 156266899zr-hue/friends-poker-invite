@@ -46,7 +46,7 @@ test('账号全链路：审批、权限、房间归属、持久化、密码、�
  assert.equal((await call('/auth',{op:'register',username:'bob',password:f.secret,nickname:'朋友乙'})).status,400);
  const db=new DatabaseSync(join(f.directory,'accounts.sqlite'),{readOnly:true});
  const stored=db.prepare('SELECT password_hash FROM users WHERE id=?').get(id).password_hash;
- assert(stored.startsWith('argon2id:'));assert(!stored.includes(f.secret));db.close();
+ assert(stored.startsWith('scrypt:'));assert(!stored.includes(f.secret));db.close();
  await f.restart();
  assert.equal((await call('/auth',{op:'me'},alice)).data.user.status,'active');assert.equal((await call('/auth',{op:'me'},alice)).data.user.nickname,'新昵称');assert.equal((await call('/auth',{op:'me'},alice)).data.user.card_back,'ink');
  status=(await call('/admin-api',{op:'status'},admin)).data;assert.equal(status.limit,2);assert(status.audit.some(x=>x.action==='active'));assert.equal(status.rooms.length,0);

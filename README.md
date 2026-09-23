@@ -4,7 +4,7 @@
 
 ## 本地运行
 
-需要 Node.js 24.7 或以上版本。项目使用 Node 自带的 SQLite 和 Argon2id，无需安装 npm 依赖。
+需要 Node.js 22.13 或以上版本。项目使用 Node 自带的 SQLite 和 scrypt 密码哈希，无需安装 npm 依赖；由旧版 Node 24 创建的 Argon2id 密码在 Node 24 环境中仍可验证。
 
 首次运行：
 

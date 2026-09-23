@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=24.7.0"},
+  "engines": {"node": ">=22.13.0"},
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test test.mjs accounts.test.mjs latest-http.test.mjs"
