@@ -1,1 +1,11 @@
-{"name":"friends-poker-local","version":"1.0.0","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test test.mjs"}}
+{
+  "name": "friends-poker-local",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24.7.0"},
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test test.mjs accounts.test.mjs latest-http.test.mjs"
+  }
+}

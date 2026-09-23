@@ -1,10 +1,91 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>同桌 · 朋友德州扑克</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23112c28'/%3E%3Ctext x='5' y='26' font-size='29' fill='%23e9c780'%3E♠%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script></head><body>
-<header><a class="brand" href="/">♠ <span>同桌<small>FRIENDS AT THE TABLE</small></span></a><div class="local">好友测试版 <span>· 纯积分娱乐</span></div><button id="settingsButton" class="quiet">⚙ 设置</button><button id="rulesButton" class="quiet">玩法说明</button></header>
-<main><section id="lobby" class="lobby"><div class="intro"><div class="eyebrow">一桌朋友，一副好牌</div><h1>今晚，<br>一起坐下来。</h1><p>创建一个房间，把房间号告诉朋友。<br>不谈输赢，只享受每一次出牌。</p><div class="mini-cards"><span class="card">A<small>♠</small></span><span class="card red">K<small>♥</small></span></div><div class="specs">2–8 人同桌 <b>·</b> 每人 2,000 积分 <b>·</b> 盲注 10 / 20</div></div>
-<div class="entry"><div class="eyebrow">准备入座</div><h2>朋友局，从这里开始</h2><label for="nickname">你的称呼</label><input id="nickname" maxlength="12" placeholder="输入昵称" value="玩家"><button id="create" class="primary">创建朋友房间 <span>＋</span></button><div class="divider">或者加入已有房间</div><label for="roomcode">六位房间号</label><div class="join"><input id="roomcode" inputmode="numeric" maxlength="6" placeholder="例如 123456"><button id="join">加入房间</button></div><p class="hint">打开网址即可进入大厅。输入朋友分享的六位房间号加入；同一房间内昵称不能重复。</p><button id="practice" class="text-button">一个人先试试 → 进入陪练局</button></div></section>
-<section id="game" hidden><div class="room-bar"><div><div class="eyebrow">朋友房间</div><h2><span id="code"></span> <button id="copy" class="quiet">复制邀请</button></h2></div><div class="room-actions"><span id="hand"></span><button id="manageRoom" class="quiet" hidden>房间管理</button><button id="closeRoom" class="danger quiet" hidden>关闭房间</button><button id="leave" class="quiet">离开房间</button></div></div><div class="game-layout"><div class="play-column"><div class="table-wrap"><div class="felt"><div class="table-mark">同 桌 <span>FRIENDS · HOLD’EM</span></div><div class="center"><div id="phase" class="eyebrow"></div><div id="board" class="board"></div><div class="pot">底池积分 <strong id="pot">0</strong></div><div id="outcome"></div></div></div><div id="seats"></div></div><div id="turnBanner" hidden>轮到你了</div><div id="control" class="control"><div class="control-title"><strong id="turnText">等待入座</strong><span id="timer"></span></div><div id="hostControls"><button id="addbot">＋ 添加陪练</button><button id="start" class="primary">开始发牌</button><button id="reset" class="quiet">重置本桌积分</button></div><div id="actions" hidden><div class="buttons"><button id="fold" class="danger">弃牌</button><button id="call" class="primary">过牌</button><button id="allin">全下</button></div><div class="raise-row"><label for="amount">加注至</label><input id="amount" type="number" step="10" min="20"><button id="raise">确认加注</button></div></div><p class="hint" id="help"></p></div></div><aside><div class="aside-title">行动历史 <span>最近 30 手</span></div><div id="logs"></div><div class="table-info"><h3>轻松玩，慢慢想</h3><p>每次行动有 45 秒。超时后，无需跟注时自动过牌，否则自动弃牌。</p><p>每个房间最多 8 人，创建 5 小时后自动关闭。积分仅在本桌有效，不可购买、转让或兑换。</p></div></aside></div></section></main>
-<footer><span>♧ 为相聚而玩</span><span>无充值 · 无提现 · 无奖品 · 禁止场外兑付</span></footer><div id="toast" role="status" aria-live="polite" hidden></div>
-<dialog id="rules"><h2>德州扑克 · 朋友局</h2><p>每人两张底牌，与五张公共牌组成最好的五张牌。按翻牌前、翻牌、转牌、河牌四轮行动，最后摊牌比较大小。</p><p>牌型由高到低：同花顺、四条、葫芦、同花、顺子、三条、两对、一对、高牌。A 可组成 A2345 顺子。</p><p>两张底牌发出后即可查看。小盲先投入 10；若无人加注，翻牌前必须再补 10，使本轮总下注达到 20（积分不足全下除外）。大盲已投入 20，无人加注时可过牌。</p><p><strong>跟注与加注：</strong>跟注是补齐当前最高下注；“加注至”表示自己在当前轮累计投入的目标。正常再加注的增量，不能小于上一笔完整加注的增量。例如最高下注从 80 加到 210，加注幅度为 130；下一位可跟注至 210，如要再加注则最低为 210＋130＝340。若加到 400，下一位最低再加注至 590。</p><p>“本手累计”包含之前下注轮的投入，不用于计算当前轮的最低加注。积分不足最低加注时仍可全下，但不足额全下不会立即重新开放已行动玩家的加注权。全下后按投入计算主池和边池，平局平分。</p><p>房主可在每手结束后重置全桌积分。基础陪练只根据自己的底牌、公共牌、底池和跟注成本行动，会弃牌、过牌、跟注、加注或全下，不会查看其他玩家底牌。</p><p>好友娱乐测试，无任何现金价值。请勿将积分与金钱、财物或场外结算关联。</p><button id="closeRules" class="primary">知道了</button></dialog>
-<dialog id="settingsDialog"><div class="dialog-head"><h2>设备设置</h2><button id="closeSettings" class="quiet" aria-label="关闭设置">关闭</button></div><div class="skin-setting"><div><strong>卡背皮肤</strong><small>别人会看到你选择的卡背；未发出的公共牌也使用这套皮肤</small></div><div class="skin-picker" aria-label="选择卡背皮肤"><button type="button" class="skin-option" data-skin="classic" data-name="经典墨绿" aria-pressed="false"><span class="card back skin-classic">·</span><span>经典墨绿</span></button><button type="button" class="skin-option" data-skin="ivory" data-name="象牙鎏金" aria-pressed="false"><span class="card back skin-ivory">·</span><span>象牙鎏金</span></button><button type="button" class="skin-option" data-skin="midnight" data-name="午夜星辰" aria-pressed="false"><span class="card back skin-midnight">·</span><span>午夜星辰</span></button><button type="button" class="skin-option" data-skin="ink" data-name="东方水墨" aria-pressed="false"><span class="card back skin-ink">·</span><span>东方水墨</span></button></div></div><div class="setting-row"><div><strong>游戏音效</strong><small>轮到你、操作反馈和结算提示</small></div><label class="switch"><input id="soundEnabled" type="checkbox"><span></span></label></div><div class="setting-row"><div><strong>女性荷官语音</strong><small>播报过牌、跟注、加注、全下和弃牌</small></div><label class="switch"><input id="voiceEnabled" type="checkbox"><span></span></label></div><div class="setting-row volume-row"><label for="soundVolume"><strong>音量</strong></label><input id="soundVolume" type="range" min="0" max="100" step="5"><output id="volumeValue">60%</output></div><div class="setting-row"><div><strong>轮到我时震动</strong><small id="vibrationHelp">仅在支持震动的设备上生效</small></div><label class="switch"><input id="vibrationEnabled" type="checkbox"><span></span></label></div></dialog>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>同桌 · 朋友德州扑克</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23112c28'/%3E%3Ctext x='5' y='26' font-size='29' fill='%23e9c780'%3E♠%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/account-ui.js"></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="/">♠ <span>同桌<small>FRIENDS AT THE TABLE</small></span></a>
+  <div class="local">好友测试版 <span>· 纯积分娱乐</span></div>
+  <button id="settingsButton" class="quiet" hidden>⚙ 设置</button>
+  <button id="rulesButton" class="quiet" hidden>玩法说明</button>
+</header>
+<div id="accountBar" class="account-bar" hidden>
+  <span id="accountName"></span>
+  <button id="adminButton" class="quiet" hidden>管理后台</button>
+  <button id="passwordButton" class="quiet">账号设置</button>
+  <button id="logout" class="quiet">退出账号</button>
+</div>
+<main>
+  <section id="accountGate" class="account-gate">
+    <div class="eyebrow">仅限已获批准的朋友</div>
+    <h1>同桌封闭测试</h1>
+    <p>房间链接只用于邀请。每个账号都需要房主确认身份后，才能进入牌桌。</p>
+    <form id="authForm">
+      <label for="username">登录账号</label>
+      <input id="username" autocomplete="username" pattern="[a-zA-Z0-9_]{3,32}" maxlength="32" required placeholder="3–32 位字母、数字或下划线">
+      <label for="password">密码</label>
+      <input id="password" type="password" autocomplete="current-password" maxlength="128" required placeholder="输入密码">
+      <div id="registerFields" hidden>
+        <label for="accountNickname">朋友认识的昵称</label>
+        <input id="accountNickname" maxlength="12" autocomplete="nickname" disabled>
+      </div>
+      <div class="account-buttons">
+        <button id="authSubmit" value="login" class="primary">登录</button>
+        <button id="authToggle" type="button">注册账号</button>
+      </div>
+    </form>
+    <div id="pendingPanel" hidden>
+      <h2>账号等待房主审核</h2>
+      <p>请联系房主确认你的账号。批准后点击下方按钮即可进入。</p>
+      <button id="refreshApproval" class="primary">查看审核结果</button>
+    </div>
+    <p id="accountMessage" role="status" aria-live="polite"></p>
+  </section>
+
+  <section id="lobby" class="lobby" hidden>
+    <div class="intro">
+      <div class="eyebrow">一桌朋友，一副好牌</div>
+      <h1>今晚，<br>一起坐下来。</h1>
+      <p>创建一个房间，把房间号告诉朋友。<br>不谈输赢，只享受每一次出牌。</p>
+      <div class="mini-cards"><span class="card">A<small>♠</small></span><span class="card red">K<small>♥</small></span></div>
+      <div class="specs">2–8 人同桌 <b>·</b> 每人 2,000 积分 <b>·</b> 盲注 10 / 20</div>
+    </div>
+    <div class="entry">
+      <div class="eyebrow">准备入座</div>
+      <h2>朋友局，从这里开始</h2>
+      <input id="nickname" type="hidden">
+      <button id="create" class="primary">创建朋友房间 <span>＋</span></button>
+      <div class="divider">或者加入已有房间</div>
+      <label for="roomcode">六位房间号</label>
+      <div class="join"><input id="roomcode" inputmode="numeric" maxlength="6" placeholder="例如 123456"><button id="join">加入房间</button></div>
+      <p class="hint">分享链接会自动填入房间号；只有已获房主批准的账号才能进入。</p>
+      <button id="practice" class="text-button">一个人先试试 → 进入陪练局</button>
+    </div>
+  </section>
+
+  <section id="game" hidden>
+    <div class="room-bar"><div><div class="eyebrow">朋友房间</div><h2><span id="code"></span> <button id="copy" class="quiet">复制邀请</button></h2></div><div class="room-actions"><span id="hand"></span><button id="manageRoom" class="quiet" hidden>房间管理</button><button id="closeRoom" class="danger quiet" hidden>关闭房间</button><button id="leave" class="quiet">离开房间</button></div></div>
+    <div class="game-layout"><div class="play-column"><div class="table-wrap"><div class="felt"><div class="table-mark">同 桌 <span>FRIENDS · HOLD’EM</span></div><div class="center"><div id="phase" class="eyebrow"></div><div id="board" class="board"></div><div class="pot">底池积分 <strong id="pot">0</strong></div><div id="outcome"></div></div></div><div id="seats"></div></div><div id="turnBanner" hidden>轮到你了</div><div id="control" class="control"><div class="control-title"><strong id="turnText">等待入座</strong><span id="timer"></span></div><div id="hostControls"><button id="addbot">＋ 添加陪练</button><button id="start" class="primary">开始发牌</button><button id="reset" class="quiet">重置本桌积分</button></div><div id="actions" hidden><div class="buttons"><button id="fold" class="danger">弃牌</button><button id="call" class="primary">过牌</button><button id="allin">全下</button></div><div class="raise-row"><label for="amount">加注至</label><input id="amount" type="number" step="10" min="20"><button id="raise">确认加注</button></div></div><p class="hint" id="help"></p></div></div><aside><div class="aside-title">行动历史 <span>最近 30 手</span></div><div id="logs"></div><div class="table-info"><h3>轻松玩，慢慢想</h3><p>每次行动有 45 秒。超时后，无需跟注时自动过牌，否则自动弃牌。</p><p>每个房间最多 8 人，创建 5 小时后自动关闭。积分仅在本桌有效，不可购买、转让或兑换。</p></div></aside></div>
+  </section>
+</main>
+<footer><span>♧ 为相聚而玩</span><span>无充值 · 无提现 · 无奖品 · 禁止场外兑付</span></footer>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="rules"><h2>德州扑克 · 朋友局</h2><p>每人两张底牌，与五张公共牌组成最好的五张牌。按翻牌前、翻牌、转牌、河牌四轮行动，最后摊牌比较大小。</p><p>牌型由高到低：同花顺、四条、葫芦、同花、顺子、三条、两对、一对、高牌。A 可组成 A2345 顺子。</p><p>两张底牌发出后即可查看。小盲先投入 10；若无人加注，翻牌前必须再补 10，使本轮总下注达到 20（积分不足全下除外）。大盲已投入 20，无人加注时可过牌。</p><p><strong>跟注与加注：</strong>跟注是补齐当前最高下注；“加注至”表示自己在当前轮累计投入的目标。正常再加注的增量，不能小于上一笔完整加注的增量。例如最高下注从 80 加到 210，加注幅度为 130；下一位可跟注至 210，如要再加注则最低为 340。</p><p>“本手累计”包含之前下注轮的投入，不用于计算当前轮的最低加注。积分不足最低加注时仍可全下，但不足额全下不会立即重新开放已行动玩家的加注权。全下后按投入计算主池和边池，平局平分。</p><p>房主可在每手结束后重置全桌积分。基础陪练只根据自己的底牌、公共牌、底池和跟注成本行动，不会查看其他玩家底牌。</p><p>好友娱乐测试，无任何现金价值。请勿将积分与金钱、财物或场外结算关联。</p><button id="closeRules" class="primary">知道了</button></dialog>
+
+<dialog id="settingsDialog"><div class="dialog-head"><h2>设备设置</h2><button id="closeSettings" class="quiet" aria-label="关闭设置">关闭</button></div><div class="setting-row"><div><strong>游戏声音</strong><small>语音总开关</small></div><label class="switch"><input id="soundEnabled" type="checkbox"><span></span></label></div><div class="setting-row"><div><strong>女性荷官语音</strong><small>使用录制音频播报行动、轮次提醒和摊牌</small></div><label class="switch"><input id="voiceEnabled" type="checkbox"><span></span></label></div><div class="setting-row volume-row"><label for="soundVolume"><strong>音量</strong></label><input id="soundVolume" type="range" min="0" max="100" step="5"><output id="volumeValue">60%</output></div><div class="setting-row"><div><strong>轮到我时震动</strong><small id="vibrationHelp">仅在支持震动的设备上生效</small></div><label class="switch"><input id="vibrationEnabled" type="checkbox"><span></span></label></div></dialog>
+
 <dialog id="manageDialog"><div class="dialog-head"><div><h2>房间管理</h2><p>对局中的玩家将在本手结束后移出。</p></div><button id="closeManage" class="quiet">关闭</button></div><div id="playerManager"></div></dialog>
-<dialog id="resultDialog"><h2 id="resultTitle">本手结算</h2><p id="resultSummary"></p><div id="showdown"></div><div id="resultRows"></div><p class="hint">净输赢 = 收回 − 投入。明细保留在行动历史对应的手牌中，可展开查看。</p><button id="closeResult" class="primary">继续看牌桌</button></dialog></body></html>
+<dialog id="resultDialog"><h2 id="resultTitle">本手结算</h2><p id="resultSummary"></p><div id="showdown"></div><div id="resultRows"></div><p class="hint">净输赢 = 收回 − 投入。明细保留在行动历史对应的手牌中，可展开查看。</p><button id="closeResult" class="primary">继续看牌桌</button></dialog>
+
+<dialog id="passwordDialog" aria-labelledby="passwordTitle"><div class="dialog-head"><h2 id="passwordTitle">账号设置</h2><button id="closePassword">关闭</button></div><nav class="account-settings-menu" aria-label="账号设置菜单"><details id="skinSection"><summary>皮肤仓库<span>选择跟随账号的卡背</span></summary><div class="account-section-body"><div class="skin-picker" aria-label="选择账号卡背"><button type="button" class="skin-option" data-skin="classic" data-name="经典墨绿" aria-pressed="false"><span class="card back skin-classic">·</span><span>经典墨绿</span></button><button type="button" class="skin-option" data-skin="ivory" data-name="象牙鎏金" aria-pressed="false"><span class="card back skin-ivory">·</span><span>象牙鎏金</span></button><button type="button" class="skin-option" data-skin="midnight" data-name="午夜星辰" aria-pressed="false"><span class="card back skin-midnight">·</span><span>午夜星辰</span></button><button type="button" class="skin-option" data-skin="ink" data-name="东方水墨" aria-pressed="false"><span class="card back skin-ink">·</span><span>东方水墨</span></button></div><p id="skinMessage" role="status"></p></div></details><details id="nicknameSection"><summary>修改昵称<span>更新牌桌显示名称</span></summary><div class="account-section-body"><form id="nicknameForm"><label for="settingsNickname">昵称</label><input id="settingsNickname" maxlength="12" required autocomplete="nickname"><button class="primary">保存昵称</button></form><p id="nicknameMessage" role="status"></p></div></details><details id="passwordSection"><summary>修改密码<span>设置新的六位数字密码</span></summary><div class="account-section-body"><form id="passwordForm"><label for="oldPassword">原密码</label><input id="oldPassword" type="password" autocomplete="current-password" required maxlength="128"><label for="newPassword">新密码</label><input id="newPassword" type="password" autocomplete="new-password" required minlength="6" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" placeholder="六位数字"><button class="primary">保存新密码</button></form><p id="passwordMessage" role="status"></p></div></details></nav></dialog>
+
+<dialog id="adminDialog" aria-labelledby="adminTitle"><div class="dialog-head"><h2 id="adminTitle">封测管理后台</h2><button id="closeAdmin">关闭</button></div><p>批准前请通过你认识的联系方式核实身份。封禁会关闭该账号所在房间；后台不展示任何底牌。</p><strong id="adminMetrics"></strong><div class="admin-toolbar"><button id="refreshAdmin">刷新</button><form id="limitForm"><label for="registrationLimit">注册上限</label><input id="registrationLimit" type="number" min="1" max="10000" required><button>保存</button></form></div><p id="adminMessage" role="status"></p><nav class="admin-settings-menu" aria-label="后台管理菜单"><details id="adminUsersSection"><summary>用户审批与管理<span>审核注册、封禁账号或撤销登录</span></summary><div class="admin-section-body" id="adminUsers"></div></details><details id="adminAuditSection"><summary>近期记录<span>最近 50 条管理与开局记录</span></summary><div class="admin-section-body" id="adminAudit"></div></details></nav><h3>当前房间</h3><div id="adminRooms"></div></dialog>
+</body>
+</html>
