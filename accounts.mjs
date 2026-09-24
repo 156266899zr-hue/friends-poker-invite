@@ -29,12 +29,17 @@ export async function accounts(){
  db.exec(`PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
  CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY,username TEXT UNIQUE NOT NULL,nickname TEXT NOT NULL,password_hash TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('admin','user')),status TEXT NOT NULL CHECK(status IN ('pending','active','banned')),created_at INTEGER NOT NULL,last_login_at INTEGER,last_active_at INTEGER,card_back TEXT NOT NULL DEFAULT 'classic');
  CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL REFERENCES users(id),expires_at INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS sessions_user_active ON sessions(user_id,expires_at);
  CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value INTEGER NOT NULL);
  INSERT OR IGNORE INTO settings VALUES('registration_limit',100);
  CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor_id TEXT,action TEXT NOT NULL,target TEXT,created_at INTEGER NOT NULL);
  `);
  if(!db.prepare('PRAGMA table_info(users)').all().some(column=>column.name==='card_back'))db.exec("ALTER TABLE users ADD COLUMN card_back TEXT NOT NULL DEFAULT 'classic'");
  if(!db.prepare('PRAGMA table_info(users)').all().some(column=>column.name==='xp'))db.exec("ALTER TABLE users ADD COLUMN xp INTEGER NOT NULL DEFAULT 0");
+ const currentSession=db.prepare('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?');
+ const touchActive=db.prepare('UPDATE users SET last_active_at=? WHERE id=?');
+ const deleteExpiredSessions=db.prepare('DELETE FROM sessions WHERE expires_at<?');
+ const ACTIVE_WRITE_INTERVAL=15000;
  const audit=(actor,action,target='')=>db.prepare('INSERT INTO audit(actor_id,action,target,created_at) VALUES(?,?,?,?)').run(actor,action,target,Date.now());
  if(!db.prepare("SELECT id FROM users WHERE role='admin'").get()){
   const name=username(process.env.ADMIN_USERNAME||'admin');
@@ -44,11 +49,11 @@ export async function accounts(){
  const dummy=await hash(randomBytes(24).toString('hex'));
  const limits=new Map();let hashing=0;
  function rate(key,max,ms){const now=Date.now();let item=limits.get(key);if(!item||item.until<=now){item={count:0,until:now+ms};limits.set(key,item);}if(++item.count>max)fail(429,'操作过于频繁，请稍后再试');}
- const cleanup=setInterval(()=>{for(const [key,value] of limits)if(value.until<Date.now())limits.delete(key);db.prepare('DELETE FROM sessions WHERE expires_at<?').run(Date.now());},60000);cleanup.unref();
+ const cleanup=setInterval(()=>{for(const [key,value] of limits)if(value.until<Date.now())limits.delete(key);deleteExpiredSessions.run(Date.now());},60000);cleanup.unref();
  async function costly(fn){if(hashing>=4)fail(429,'当前登录人数较多，请稍后重试');hashing++;try{return await fn();}finally{hashing--;}}
  function sessionToken(req){const raw=String(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('poker_session='));return raw?raw.slice(14):'';}
- function current(req){const token=sessionToken(req);if(!/^[a-f0-9]{64}$/.test(token))return null;return db.prepare('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?').get(digest(token),Date.now())||null;}
- function requireUser(req,active=true){const u=current(req);if(!u)fail(401,'请先登录');if(u.status==='banned')fail(403,'账号已被封禁，请联系房主');if(active&&u.status!=='active')fail(403,'账号待审核，请等待房主批准');db.prepare('UPDATE users SET last_active_at=? WHERE id=?').run(Date.now(),u.id);return u;}
+ function current(req){const token=sessionToken(req);if(!/^[a-f0-9]{64}$/.test(token))return null;return currentSession.get(digest(token),Date.now())||null;}
+ function requireUser(req,active=true){const u=current(req);if(!u)fail(401,'请先登录');if(u.status==='banned')fail(403,'账号已被封禁，请联系房主');if(active&&u.status!=='active')fail(403,'账号待审核，请等待房主批准');const now=Date.now();if(now-(u.last_active_at||0)>=ACTIVE_WRITE_INTERVAL){touchActive.run(now,u.id);u.last_active_at=now;}return u;}
  function requireAdmin(req){const u=requireUser(req);if(u.role!=='admin')fail(403,'仅管理员可访问');return u;}
  function awardXp(userId,amount){const gain=Math.max(0,Math.trunc(amount));if(!gain)return db.prepare('SELECT xp FROM users WHERE id=?').get(userId)?.xp||0;db.prepare('UPDATE users SET xp=xp+? WHERE id=?').run(gain,userId);return db.prepare('SELECT xp FROM users WHERE id=?').get(userId)?.xp||0;}
  function cookie(res,token,maxAge=43200){res.setHeader('Set-Cookie',`poker_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${process.env.COOKIE_SECURE==='true'?'; Secure':''}`);}

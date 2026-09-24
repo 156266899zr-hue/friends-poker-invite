@@ -1,19 +1,26 @@
 import {randomUUID} from 'node:crypto';
 import {fail} from './accounts.mjs';
-export const gameVersion='1.4.0';
+export const gameVersion='1.4.1';
 export function community(db,{requireUser,requireAdmin,rate}){
  db.exec(`CREATE TABLE IF NOT EXISTS friendships(id TEXT PRIMARY KEY, requester TEXT NOT NULL REFERENCES users(id), receiver TEXT NOT NULL REFERENCES users(id), pair TEXT UNIQUE NOT NULL, status TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS friendships_requester ON friendships(requester,updatedAt);
+ CREATE INDEX IF NOT EXISTS friendships_receiver ON friendships(receiver,updatedAt);
  CREATE TABLE IF NOT EXISTS feedback(id TEXT PRIMARY KEY,userId TEXT NOT NULL REFERENCES users(id),username TEXT NOT NULL,type TEXT NOT NULL,content TEXT NOT NULL,roomId TEXT,handId INTEGER,gameVersion TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',adminNote TEXT NOT NULL DEFAULT '',createdAt INTEGER NOT NULL,updatedAt INTEGER NOT NULL);`);
  const invitations=new Map(),types=['bug','experience','feature','other'],statuses=['new','viewed','processing','done'];
  const tableFor=(id,rooms)=>[...rooms.values()].find(r=>r.expiresAt>Date.now()&&r.players.some(p=>p.userId===id));
- const online=id=>!!db.prepare("SELECT 1 FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=? AND u.status='active' AND u.last_active_at>? AND s.expires_at>?").get(id,Date.now()-45000,Date.now());
+ const onlineQuery=db.prepare("SELECT 1 FROM users u JOIN sessions s ON s.user_id=u.id WHERE u.id=? AND u.status='active' AND u.last_active_at>? AND s.expires_at>?");
+ const friendList=db.prepare(`SELECT f.id relationId,f.status,f.requester,f.receiver,o.id,o.username,o.nickname,o.last_active_at,
+  EXISTS(SELECT 1 FROM sessions s WHERE s.user_id=o.id AND s.expires_at>?) hasSession
+  FROM friendships f JOIN users o ON o.id=CASE WHEN f.requester=? THEN f.receiver ELSE f.requester END
+  WHERE (f.requester=? OR f.receiver=?) AND f.status!='rejected' AND o.status='active' ORDER BY f.updatedAt DESC`);
+ const online=id=>!!onlineQuery.get(id,Date.now()-45000,Date.now());
  const pair=(a,b)=>[a,b].sort().join(':');
  function handle(req,b,rooms){
   const u=requireUser(req),now=Date.now();
   for(const [id,i] of invitations)if(i.expiresAt<now||!rooms.has(i.roomId))invitations.delete(id);
   if(b.op==='list'){
-   const relations=db.prepare('SELECT * FROM friendships WHERE requester=? OR receiver=? ORDER BY updatedAt DESC').all(u.id,u.id);
-   return {friends:relations.filter(r=>r.status!=='rejected').flatMap(r=>{const other=db.prepare("SELECT id,username,nickname FROM users WHERE id=? AND status='active'").get(r.requester===u.id?r.receiver:r.requester);return other?[{...other,relationId:r.id,status:r.status,incoming:r.receiver===u.id,presence:!online(other.id)?'offline':tableFor(other.id,rooms)?'playing':'online'}]:[];}),invitations:[...invitations.values()].filter(i=>i.toUserId===u.id)};
+   const friends=friendList.all(now,u.id,u.id,u.id).map(({last_active_at,hasSession,requester,receiver,...other})=>({...other,incoming:receiver===u.id,presence:!hasSession||last_active_at<=now-45000?'offline':tableFor(other.id,rooms)?'playing':'online'}));
+   return {friends,invitations:[...invitations.values()].filter(i=>i.toUserId===u.id)};
   }
   if(b.op==='search'){rate('search:'+u.id,30,60000);return {user:db.prepare("SELECT id,username,nickname FROM users WHERE username=? AND status='active'").get(String(b.username||'').trim().toLowerCase())||null};}
   if(b.op==='request'){

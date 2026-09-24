@@ -18,7 +18,7 @@ test('好友权限、邀请、反馈持久化',async t=>{
  assert.equal((await f.request('/api',{op:'join',code:(await call('invitation',{id:i.id})).data.roomId},cookie)).status,200);
  assert.equal((await call('feedback',{type:'bug',content:'牌面问题',userId:host.id,gameVersion:'fake'})).status,200);
  assert.equal((await f.request('/admin-api',{op:'feedbackList'},cookie)).status,403);
- const item=(await f.request('/admin-api',{op:'feedbackList'},admin)).data.items[0];assert.equal(item.userId,friend.id);assert.equal(item.roomId,room.code);assert.equal(item.gameVersion,'1.4.0');
+ const item=(await f.request('/admin-api',{op:'feedbackList'},admin)).data.items[0];assert.equal(item.userId,friend.id);assert.equal(item.roomId,room.code);assert.equal(item.gameVersion,'1.4.1');
  assert.equal((await f.request('/admin-api',{op:'feedbackUpdate',id:item.id,status:'processing',adminNote:'内部备注'},admin)).status,200);
  assert(!JSON.stringify((await call('list')).data).includes('内部备注'));await f.restart();assert.equal((await call('list')).data.friends[0].status,'accepted');
  assert.equal((await f.request('/admin-api',{op:'feedbackList',status:'processing'},admin)).data.items[0].adminNote,'内部备注');

@@ -14,6 +14,7 @@ test('账号全链路：审批、权限、房间归属、持久化、密码、�
  let login=await call('/auth',{op:'login',username:'test_admin',password:f.secret});
  assert.equal(login.data.user.xp,0);
  assert.equal(login.status,200);assert.match(login.headers.get('set-cookie'),/HttpOnly; SameSite=Strict/);let admin=login.cookie;
+ const activityDb=new DatabaseSync(join(f.directory,'accounts.sqlite'));activityDb.prepare("UPDATE users SET last_active_at=1 WHERE username='test_admin'").run();activityDb.close();await call('/auth',{op:'me'},admin);const activityRead=new DatabaseSync(join(f.directory,'accounts.sqlite'),{readOnly:true}),firstActive=activityRead.prepare("SELECT last_active_at FROM users WHERE username='test_admin'").get().last_active_at;for(let i=0;i<8;i++)await call('/auth',{op:'me'},admin);const secondActive=activityRead.prepare("SELECT last_active_at FROM users WHERE username='test_admin'").get().last_active_at;activityRead.close();assert.equal(secondActive,firstActive,'高频请求不应反复写在线时间');
  assert.equal((await call('/auth',{op:'register',username:'alice',password:f.secret,nickname:'朋友甲',role:'admin',status:'active'})).status,200);
  assert.equal((await call('/auth',{op:'register',username:'ALICE',password:f.secret,nickname:'朋友甲'})).status,400);
  login=await call('/auth',{op:'login',username:'alice',password:f.secret});let alice=login.cookie;
