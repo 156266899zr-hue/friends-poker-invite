@@ -14,7 +14,7 @@ export const cardBacks=['classic','ivory','midnight','ink'];
 export function cleanCardBack(value){return cardBacks.includes(value)?value:'classic';}
 export function player(name,bot=false,deviceId='',cardBack='classic'){return {id:randomUUID(),name,bot,deviceId,cardBack:cleanCardBack(cardBack),stack:2000,cards:[],bet:0,total:0,folded:false,inHand:false,lastSeen:Date.now(),pendingKick:false};}
 export function room(code,host){return {code,host:host.id,players:[host],phase:'waiting',board:[],hand:0,dealer:-1,turn:-1,high:0,minRaise:20,pending:[],logs:[],result:[],updated:Date.now()};}
-export function log(r,t){r.logs.unshift(t);r.logs=r.logs.slice(0,2000);r.history??=[];r.history.push({hand:r.hand,phase:r.phase,text:t,time:Date.now()});r.history=r.history.filter(e=>e.hand>=r.hand-29);}
+export function log(r,t){r.logs.unshift(t);r.logs=r.logs.slice(0,2000);r.history??=[];r.eventSequence=(r.eventSequence||0)+1;r.history.push({eventId:randomUUID(),sequence:r.eventSequence,hand:r.hand,phase:r.phase,text:t,time:Date.now()});r.history=r.history.filter(e=>e.hand>=r.hand-29);}
 const next=(r,from,fn)=>{for(let n=1;n<=r.players.length;n++){let i=(from+n)%r.players.length;if(fn(r.players[i]))return i;}return -1;};
 const active=p=>p.inHand&&!p.folded;
 const can=p=>active(p)&&p.stack>0;

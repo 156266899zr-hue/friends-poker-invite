@@ -118,5 +118,5 @@ export async function accounts(){
   }
   fail(400,'无效管理操作');
  }
- return {auth,admin,requireUser,rate,audit};
+ return {auth,admin,requireUser,requireAdmin,rate,audit,db};
 }

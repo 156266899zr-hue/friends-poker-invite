@@ -1,3 +1,4 @@
+import {community} from './community.mjs';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {networkInterfaces} from 'node:os';
@@ -6,6 +7,7 @@ import {accounts,fail} from './accounts.mjs';
 import {room,player,start,act,view,legal,botDecision,log,cleanCardBack,cardBacks} from './engine.mjs';
 
 const rooms=new Map(),limits=new Map(),identity=await accounts();
+const social=community(identity.db,identity);
 const port=Number(process.env.PORT||8787),root=new URL('./',import.meta.url),MAX_PLAYERS=8,ROOM_MAX_MS=5*60*60*1000;
 const send=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
 const readBody=async(req,limit=4096)=>{let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>limit)fail(413,'请求过大');}return raw;};
@@ -17,7 +19,7 @@ function roomSession(user){for(const table of rooms.values()){const seated=table
 
 const server=http.createServer(async(req,res)=>{try{
  const url=new URL(req.url,'http://localhost');
- if(['/api','/auth','/admin-api'].includes(url.pathname)){
+ if(['/api','/auth','/admin-api','/community-api'].includes(url.pathname)){
   if(req.method!=='POST')return send(res,405,{error:'请使用 POST'});
   if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return send(res,415,{error:'请使用 JSON'});
   const expected=process.env.PUBLIC_ORIGIN||`http://${req.headers.host}`;
@@ -34,6 +36,8 @@ const server=http.createServer(async(req,res)=>{try{
    if(result.user?.status==='active'){result.roomSession=roomSession(result.user);}
    return send(res,200,result);
   }
+  if(url.pathname==='/community-api')return send(res,200,social.handle(req,b,rooms));
+  if(url.pathname==='/admin-api'&&['feedbackList','feedbackUpdate'].includes(b.op))return send(res,200,social.admin(req,b));
   if(url.pathname==='/admin-api')return send(res,200,identity.admin(req,b,rooms));
 
   const account=identity.requireUser(req);let r=rooms.get(String(b.code));
@@ -68,7 +72,7 @@ const server=http.createServer(async(req,res)=>{try{
   else if(b.op==='leave'){if(!['waiting','done'].includes(r.phase))fail(400,'请在本手结束后离开；关闭页面会自动超时行动');removePlayer(r,p);if(p.id===r.host)r.host=r.players.find(q=>!q.bot)?.id;if(!r.host)rooms.delete(r.code);identity.audit(account.id,'leaveRoom',r.code);return send(res,200,{left:true});}
   else if(b.op!=='state')fail(400,'无效请求');return send(res,200,view(r,p.id));
  }
- const names={'/':'index.html','/app.js':'app.js','/account-ui.js':'account-ui.js','/style.css':'style.css','/audio/voice/check.mp3':'assets/audio/voice/check.mp3','/audio/voice/call.mp3':'assets/audio/voice/call.mp3','/audio/voice/raise.mp3':'assets/audio/voice/raise.mp3','/audio/voice/all_in.mp3':'assets/audio/voice/all_in.mp3','/audio/voice/fold.mp3':'assets/audio/voice/fold.mp3','/audio/voice/your_turn.mp3':'assets/audio/voice/your_turn.mp3','/audio/voice/showdown.mp3':'assets/audio/voice/showdown.mp3'};if(!names[url.pathname]){res.writeHead(404);return res.end('Not found');}
+ const names={'/':'index.html','/voice-manager.js':'voice-manager.js','/community-ui.js':'community-ui.js','/app.js':'app.js','/account-ui.js':'account-ui.js','/style.css':'style.css','/audio/voice/check.mp3':'assets/audio/voice/check.mp3','/audio/voice/call.mp3':'assets/audio/voice/call.mp3','/audio/voice/raise.mp3':'assets/audio/voice/raise.mp3','/audio/voice/all_in.mp3':'assets/audio/voice/all_in.mp3','/audio/voice/fold.mp3':'assets/audio/voice/fold.mp3','/audio/voice/your_turn.mp3':'assets/audio/voice/your_turn.mp3','/audio/voice/showdown.mp3':'assets/audio/voice/showdown.mp3'};if(!names[url.pathname]){res.writeHead(404);return res.end('Not found');}
  res.writeHead(200,{'Content-Type':url.pathname.endsWith('.mp3')?'audio/mpeg':url.pathname.endsWith('.js')?'text/javascript; charset=utf-8':url.pathname.endsWith('.css')?'text/css; charset=utf-8':'text/html; charset=utf-8','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'self'; frame-ancestors 'none'",'Cache-Control':url.pathname.endsWith('.mp3')?'public, max-age=86400':'no-cache'});res.end(await readFile(new URL(names[url.pathname],root)));
  }catch(e){send(res,e.status||400,{error:e.message||'请求失败'});}});
 

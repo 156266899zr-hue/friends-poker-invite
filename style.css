@@ -30,3 +30,24 @@
 #adminDialog{max-width:960px;max-height:90vh;overflow:auto}.admin-user{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}.admin-user p{margin:4px 0}.admin-user small{color:var(--muted)}.admin-buttons{display:flex;gap:8px;flex-wrap:wrap}.admin-toolbar{display:flex;gap:20px;flex-wrap:wrap;margin-top:20px}#limitForm{display:flex;align-items:center;gap:8px}#limitForm label{margin:0;white-space:nowrap}#registrationLimit{width:100px}#adminAudit p{font-size:12px;overflow-wrap:anywhere}
 @media(max-width:650px){.account-gate{padding:22px;margin-top:0}.account-gate h1{font-size:28px}.account-buttons{flex-direction:column}.account-bar{gap:8px}.account-bar button{padding:7px 9px}.admin-user{display:block}.admin-buttons{margin-top:12px}#adminDialog{padding:20px}.admin-toolbar{gap:10px}}
 .account-settings-menu details,.admin-settings-menu details{border:1px solid var(--line);border-radius:10px;margin:10px 0;background:#13211e}.account-settings-menu summary,.admin-settings-menu summary{cursor:pointer;padding:15px 16px;font-weight:650;list-style-position:inside}.account-settings-menu summary span,.admin-settings-menu summary span{display:block;margin-left:22px;color:var(--muted);font-size:12px;font-weight:400}.account-settings-menu details[open] summary,.admin-settings-menu details[open] summary{border-bottom:1px solid var(--line);color:var(--gold)}.account-section-body,.admin-section-body{padding:4px 16px 18px}.account-section-body .skin-setting{border:0}.admin-settings-menu{margin-top:14px}.admin-section-body .admin-user:last-child{border-bottom:0}
+/* Compact player information; keep the two distinct contribution values. */
+.card{position:relative;overflow:hidden;flex-shrink:0;line-height:1}
+.card small{line-height:1;max-width:100%}
+.seat .balance{white-space:nowrap}
+.community-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.community-row>span{flex:1;min-width:120px;overflow-wrap:anywhere}.community-row small,.feedback-item>small{display:block;color:var(--muted)}
+select,textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid #496058;border-radius:6px;padding:8px;max-width:100%;width:100%}textarea{resize:vertical}.community-filters{display:flex;gap:8px;flex-wrap:wrap}.feedback-item{border-top:1px solid var(--line);padding:16px 0}.feedback-text{white-space:pre-wrap;overflow-wrap:anywhere}#feedbackForm button,#friendSearch button{margin-top:10px}
+@media(max-width:650px){
+ .seat{padding:3px;width:80px}.seat .name{font-size:10px;line-height:14px}
+ .seat .bet,.seat .total,.seat .total strong{font-size:9px;line-height:12px;font-weight:400}
+ .seat .bet small{display:inline;font-size:9px}.seat .balance{font-size:9px;line-height:12px;margin:2px 0 0}
+ .seat .status{position:absolute;right:1px;top:39px;z-index:1;max-width:calc(100% - 2px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8px;line-height:11px;min-height:0;border-radius:3px;background:#15251fee;padding:0 2px;color:#eee}
+ .seat:not(.me) .cards{gap:2px;margin-top:3px;min-height:33.6px}
+ .seat:not(.me) .card{width:24px;height:33.6px;padding:2px;font-size:12px;line-height:1;border-radius:3px}
+ .seat:not(.me) .card small{font-size:13px;line-height:1}
+ .seat.s2{left:13%}.seat.s6{left:87%}
+ .seat.me .status{top:39px}.seat.me .cards{margin-top:3px}
+}
+@media(max-width:650px){.seat.s1,.seat.s7{top:73%}}
+
+@media(max-width:650px){#settingsButton{white-space:nowrap;padding:8px 10px}}
