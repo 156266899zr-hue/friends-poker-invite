@@ -34,8 +34,7 @@ test('最新版 HTTP 功能与账号审核并存：卡背、恢复、踢人和�
  assert.equal(recovered.token,member.token);assert.equal(recovered.recovered,true);
  memberView=(await f.request('/api',{...member,op:'state'},friend.cookie)).data;
  assert.equal(memberView.players.find(p=>p.id===memberView.me).cardBack,'ink');
- assert.equal((await f.request('/api',{...member,op:'refillRequest'},friend.cookie)).data.error,'积分归零后才能申请补分');
- assert.equal((await f.request('/api',{...member,op:'refillRespond',playerId:memberView.me,approved:true},friend.cookie)).status,403);
+ assert.equal((await f.request('/api',{...member,op:'rebirth'},friend.cookie)).data.error,'当前积分仍可继续游戏');
  assert.equal((await f.request('/api',{op:'join',code:host.code,cardBack:'classic'},duplicate.cookie)).status,400);
  for(let i=0;i<6;i++)assert.equal((await f.request('/api',{...host,op:'bot'},admin)).status,200);
  assert.equal((await f.request('/api',{...host,op:'bot'},admin)).status,400);
@@ -63,6 +62,21 @@ test('七个录制音效均可由浏览器加载',async t=>{
   assert.equal(response.status,200,file);assert.equal(response.headers.get('content-type'),'audio/mpeg',file);assert(bytes.byteLength>9000,file);
  }
  assert.equal((await fetch(`${f.base}/audio/voice/not-found.mp3`)).status,404);
+});
+
+test('每手结算只给正净盈利账户增加永久 XP',async t=>{
+ const f=await fixture();t.after(()=>f.close());
+ const admin=(await f.request('/auth',{op:'login',username:'test_admin',password:f.secret})).cookie;
+ const friend=await approvedUser(f,admin,'xp_friend','经验朋友');
+ const host=(await f.request('/api',{op:'create',deviceId:'xp-host'},admin)).data;
+ const member=(await f.request('/api',{op:'join',code:host.code,deviceId:'xp-friend'},friend.cookie)).data;
+ let state=(await f.request('/api',{...host,op:'start'},admin)).data;const hostId=state.me;
+ const actor=state.players[state.turn].id===state.me?{session:host,cookie:admin}:{session:member,cookie:friend.cookie};
+ state=(await f.request('/api',{...actor.session,op:'act',type:'fold'},actor.cookie)).data;assert.equal(state.phase,'done');
+ const winner=state.lastSettlement.rows.find(row=>row.net>0);
+ const winnerCookie=winner.id===hostId?admin:friend.cookie;
+ const winnerAccount=(await f.request('/auth',{op:'me'},winnerCookie)).data.user;
+ assert.equal(winnerAccount.xp,1);assert.equal(state.players.find(p=>p.id===winner.id).xp,1);assert.equal(state.players.find(p=>p.id===winner.id).level,1);
 });
 
 test('进行中的牌局允许空位观战、下一手自动入座，满桌拒绝加入',async t=>{

@@ -10,7 +10,7 @@ const deriveScrypt=promisify(scrypt),deriveArgon2=crypto.argon2?promisify(crypto
 export const fail=(status,message)=>{throw Object.assign(Error(message),{status});};
 const digest=value=>createHash('sha256').update(value).digest('hex');
 const cardBacks=['classic','ivory','midnight','ink'];
-const publicUser=u=>u?Object.fromEntries(['id','username','nickname','card_back','role','status','created_at','last_login_at','last_active_at'].map(k=>[k,u[k]])):null;
+const publicUser=u=>u?Object.fromEntries(['id','username','nickname','card_back','xp','role','status','created_at','last_login_at','last_active_at'].map(k=>[k,u[k]])):null;
 function password(value){if(typeof value!=='string'||!/^\d{6}$/.test(value))fail(400,'密码须为六位数字');return value;}
 function loginPassword(value){if(typeof value!=='string'||!value.length||value.length>128)fail(400,'请输入密码');return value;}
 function nickname(value){if(typeof value!=='string'||!value.trim()||value.trim().length>12||/[\x00-\x1f\x7f]/.test(value))fail(400,'昵称须为 1–12 个字符');return value.trim();}
@@ -34,6 +34,7 @@ export async function accounts(){
  CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor_id TEXT,action TEXT NOT NULL,target TEXT,created_at INTEGER NOT NULL);
  `);
  if(!db.prepare('PRAGMA table_info(users)').all().some(column=>column.name==='card_back'))db.exec("ALTER TABLE users ADD COLUMN card_back TEXT NOT NULL DEFAULT 'classic'");
+ if(!db.prepare('PRAGMA table_info(users)').all().some(column=>column.name==='xp'))db.exec("ALTER TABLE users ADD COLUMN xp INTEGER NOT NULL DEFAULT 0");
  const audit=(actor,action,target='')=>db.prepare('INSERT INTO audit(actor_id,action,target,created_at) VALUES(?,?,?,?)').run(actor,action,target,Date.now());
  if(!db.prepare("SELECT id FROM users WHERE role='admin'").get()){
   const name=username(process.env.ADMIN_USERNAME||'admin');
@@ -49,6 +50,7 @@ export async function accounts(){
  function current(req){const token=sessionToken(req);if(!/^[a-f0-9]{64}$/.test(token))return null;return db.prepare('SELECT u.* FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expires_at>?').get(digest(token),Date.now())||null;}
  function requireUser(req,active=true){const u=current(req);if(!u)fail(401,'请先登录');if(u.status==='banned')fail(403,'账号已被封禁，请联系房主');if(active&&u.status!=='active')fail(403,'账号待审核，请等待房主批准');db.prepare('UPDATE users SET last_active_at=? WHERE id=?').run(Date.now(),u.id);return u;}
  function requireAdmin(req){const u=requireUser(req);if(u.role!=='admin')fail(403,'仅管理员可访问');return u;}
+ function awardXp(userId,amount){const gain=Math.max(0,Math.trunc(amount));if(!gain)return db.prepare('SELECT xp FROM users WHERE id=?').get(userId)?.xp||0;db.prepare('UPDATE users SET xp=xp+? WHERE id=?').run(gain,userId);return db.prepare('SELECT xp FROM users WHERE id=?').get(userId)?.xp||0;}
  function cookie(res,token,maxAge=43200){res.setHeader('Set-Cookie',`poker_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${process.env.COOKIE_SECURE==='true'?'; Secure':''}`);}
  function loginSession(res,u){db.prepare('DELETE FROM sessions WHERE user_id=?').run(u.id);const token=randomBytes(32).toString('hex');db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(digest(token),u.id,Date.now()+43200000);cookie(res,token);}
  async function auth(req,res,b){
@@ -98,7 +100,7 @@ export async function accounts(){
  function admin(req,b,rooms){
   const actor=requireAdmin(req);rate('admin:'+actor.id,120,60000);
   if(b.op==='status'){
-   const users=db.prepare('SELECT id,username,nickname,card_back,role,status,created_at,last_login_at,last_active_at FROM users ORDER BY created_at DESC').all();
+   const users=db.prepare('SELECT id,username,nickname,card_back,xp,role,status,created_at,last_login_at,last_active_at FROM users ORDER BY created_at DESC').all();
    const online=new Set(db.prepare('SELECT DISTINCT u.id FROM users u JOIN sessions s ON s.user_id=u.id WHERE s.expires_at>? AND u.last_active_at>? AND u.status=?').all(Date.now(),Date.now()-45000,'active').map(u=>u.id));
    const tables=[...rooms.values()].map(r=>({code:r.code,phase:r.phase,hand:r.hand,expiresAt:r.expiresAt,players:r.players.map(p=>({id:p.userId||null,name:p.name,username:users.find(u=>u.id===p.userId)?.username||null,bot:p.bot,online:online.has(p.userId)}))}));
    return {limit:db.prepare("SELECT value FROM settings WHERE key='registration_limit'").get().value,users:users.map(u=>({...u,online:online.has(u.id)})),rooms:tables,audit:db.prepare('SELECT * FROM audit ORDER BY id DESC LIMIT 50').all()};
@@ -118,5 +120,5 @@ export async function accounts(){
   }
   fail(400,'无效管理操作');
  }
- return {auth,admin,requireUser,requireAdmin,rate,audit,db};
+ return {auth,admin,requireUser,requireAdmin,rate,audit,awardXp,db};
 }

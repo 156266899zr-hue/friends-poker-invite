@@ -1,3 +1,4 @@
+import {progressionConfig,levelForXp,tierForLevel} from '/progression.js';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let user=null,ready=false,working=false,adminPending=false,authVersion=0,accountTimer=0,adminTimer=0,refreshController=null;
@@ -8,13 +9,14 @@ applyTableSkin();
 async function request(path,body,signal){const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});const data=await res.json();if(!res.ok)throw Object.assign(Error(data.error),{status:res.status});return data;}
 function message(text){$('accountMessage').textContent=text;}
 function renderAccountSkin(){for(const button of document.querySelectorAll('#passwordDialog .skin-option')){const selected=button.dataset.skin===(user?.card_back||'classic');button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}}
+function renderProgression(){const xp=Math.max(0,Number(user?.xp)||0),level=levelForXp(xp),tier=tierForLevel(level),current=progressionConfig.levelXp[level-1],next=progressionConfig.levelXp[level],percent=next===undefined?100:Math.max(0,Math.min(100,(xp-current)/(next-current)*100));$('accountName').innerHTML=user?`<span class="account-level level-${tier.key}"><b>LV.${level}</b><span>${esc(user.nickname)} · ${esc(user.username)}</span></span>`:'';$('progressSummary').textContent=user?`LV.${level} ${tier.name} · ${xp.toLocaleString()} XP`:'查看当前经验和升级规则';$('progressOverview').innerHTML=`<div class="progress-card level-${tier.key}"><strong>LV.${level} · ${tier.name}</strong><span>${xp.toLocaleString()} XP</span><div class="xp-track"><i style="width:${percent}%"></i></div><small>${next===undefined?'已达到最高等级':`距 LV.${level+1} 还需 ${(next-xp).toLocaleString()} XP`}</small></div>`;$('levelRules').innerHTML=progressionConfig.levelXp.map((required,index)=>{const lv=index+1,t=tierForLevel(lv);return `<div class="level-rule level-${t.key} ${lv===level?'current':''}"><b>LV.${lv}</b><span>${t.name}</span><small>${required.toLocaleString()} XP</small></div>`;}).join('');}
 function apply(next,roomSession){
  const wasActive=user?.status==='active';const previousId=user?.id||localStorage.getItem('poker-account-id');const changed=previousId!==next?.id;user=next;authVersion++;if(next)localStorage.setItem('poker-account-id',next.id);else localStorage.removeItem('poker-account-id');
  if(changed){localStorage.removeItem('poker-session');window.dispatchEvent(new Event('poker-account-cleared'));}
  if(roomSession)localStorage.setItem('poker-session',JSON.stringify(roomSession));
  const active=user?.status==='active';
  $('accountGate').hidden=active;$('authForm').hidden=!!user;$('pendingPanel').hidden=!user;
- $('accountBar').hidden=!user;$('accountName').textContent=user?`${user.nickname} · ${user.username}`:'';
+ $('accountBar').hidden=!user;renderProgression();
  $('adminButton').hidden=!(active&&user?.role==='admin');
  $('logout').hidden=!active||!!roomSession;
  $('friendsButton').hidden=!active;$('settingsButton').hidden=!active;$('rulesButton').hidden=!active;
@@ -45,7 +47,7 @@ $('authForm').onsubmit=async e=>{e.preventDefault();if(working)return;working=tr
 $('refreshApproval').onclick=refresh;
 $('logout').onclick=async()=>{authVersion++;try{await request('/auth',{op:'logout'});apply(null);message('已退出登录');}catch(e){message(e.message);}};
 window.addEventListener('poker-auth-expired',()=>refresh());
-$('passwordButton').onclick=()=>{$('passwordMessage').textContent='';$('nicknameMessage').textContent='';$('skinMessage').textContent='';$('tableSkinMessage').textContent='';$('settingsNickname').value=user?.nickname||'';$('passwordForm').reset();for(const section of document.querySelectorAll('#passwordDialog details'))section.open=false;renderAccountSkin();applyTableSkin();$('passwordDialog').showModal();};
+$('passwordButton').onclick=()=>{$('passwordMessage').textContent='';$('nicknameMessage').textContent='';$('skinMessage').textContent='';$('tableSkinMessage').textContent='';$('settingsNickname').value=user?.nickname||'';$('passwordForm').reset();for(const section of document.querySelectorAll('#passwordDialog details'))section.open=false;renderAccountSkin();renderProgression();applyTableSkin();$('passwordDialog').showModal();};
 $('passwordDialog').addEventListener('click',async e=>{const button=e.target.closest('.skin-option');if(!button||button.disabled)return;button.disabled=true;try{const data=await request('/auth',{op:'skin',cardBack:button.dataset.skin});apply(data.user,data.roomSession);renderAccountSkin();$('skinMessage').textContent=`已使用${button.dataset.name}卡背，账号已同步`;}catch(err){$('skinMessage').textContent=err.message;}finally{button.disabled=false;}});
 $('passwordDialog').addEventListener('click',e=>{const button=e.target.closest('.table-skin-option');if(!button)return;tableSkin=button.dataset.tableSkin;localStorage.setItem('poker-table-skin',tableSkin);applyTableSkin();$('tableSkinMessage').textContent=`已使用${button.dataset.name}牌桌，仅当前设备可见`;});
 $('nicknameForm').onsubmit=async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const data=await request('/auth',{op:'profile',nickname:$('settingsNickname').value});apply(data.user,data.roomSession);$('settingsNickname').value=data.user.nickname;$('nicknameMessage').textContent='昵称已保存';}catch(err){$('nicknameMessage').textContent=err.message;}finally{button.disabled=false;}};
@@ -78,4 +80,5 @@ $('adminDialog').addEventListener('click',async e=>{
 $('limitForm').onsubmit=async e=>{e.preventDefault();try{await request('/admin-api',{op:'limit',limit:Number($('registrationLimit').value)});await loadAdmin();}catch(err){$('adminMessage').textContent=err.message;}};
 function scheduleAdminRefresh(){clearTimeout(adminTimer);adminTimer=0;if($('adminDialog').open&&!document.hidden)adminTimer=setTimeout(async()=>{await loadAdmin();scheduleAdminRefresh();},10000);}
 document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(accountTimer);accountTimer=0;clearTimeout(adminTimer);adminTimer=0;refreshController?.abort();}else{refresh({restart:true});scheduleAdminRefresh();}});window.addEventListener('pagehide',()=>{clearTimeout(accountTimer);clearTimeout(adminTimer);refreshController?.abort();});
+window.addEventListener('poker-xp-updated',e=>{if(user&&Number.isFinite(e.detail?.xp)&&e.detail.xp!==user.xp){user={...user,xp:e.detail.xp};renderProgression();}});
 refresh();

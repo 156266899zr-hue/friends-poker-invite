@@ -12,6 +12,7 @@ test('账号全链路：审批、权限、房间归属、持久化、密码、�
  assert.equal((await call('/auth',{op:'login',username:'test_admin',password:f.secret},'',{Origin:'https://evil.example'})).status,403);
  assert.equal((await call('/auth',{op:'login'},'',{'Content-Type':'text/plain'})).status,415);
  let login=await call('/auth',{op:'login',username:'test_admin',password:f.secret});
+ assert.equal(login.data.user.xp,0);
  assert.equal(login.status,200);assert.match(login.headers.get('set-cookie'),/HttpOnly; SameSite=Strict/);let admin=login.cookie;
  assert.equal((await call('/auth',{op:'register',username:'alice',password:f.secret,nickname:'朋友甲',role:'admin',status:'active'})).status,200);
  assert.equal((await call('/auth',{op:'register',username:'ALICE',password:f.secret,nickname:'朋友甲'})).status,400);
@@ -48,7 +49,7 @@ test('账号全链路：审批、权限、房间归属、持久化、密码、�
  const stored=db.prepare('SELECT password_hash FROM users WHERE id=?').get(id).password_hash;
  assert(stored.startsWith('scrypt:'));assert(!stored.includes(f.secret));db.close();
  await f.restart();
- assert.equal((await call('/auth',{op:'me'},alice)).data.user.status,'active');assert.equal((await call('/auth',{op:'me'},alice)).data.user.nickname,'新昵称');assert.equal((await call('/auth',{op:'me'},alice)).data.user.card_back,'ink');
+ assert.equal((await call('/auth',{op:'me'},alice)).data.user.status,'active');assert.equal((await call('/auth',{op:'me'},alice)).data.user.nickname,'新昵称');assert.equal((await call('/auth',{op:'me'},alice)).data.user.card_back,'ink');assert.equal((await call('/auth',{op:'me'},alice)).data.user.xp,0);
  status=(await call('/admin-api',{op:'status'},admin)).data;assert.equal(status.limit,2);assert(status.audit.some(x=>x.action==='active'));assert.equal(status.rooms.length,0);
  const oldCookie=alice;login=await call('/auth',{op:'login',username:'alice',password:f.secret});alice=login.cookie;
  assert.equal((await call('/auth',{op:'me'},oldCookie)).status,401);
