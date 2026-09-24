@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {networkInterfaces} from 'node:os';
 import {randomInt,randomUUID} from 'node:crypto';
 import {accounts,fail} from './accounts.mjs';
-import {room,player,start,act,view,legal,botDecision,log,cleanCardBack,cardBacks} from './engine.mjs';
+import {room,player,start,act,view,legal,botDecision,log,requestRefill,respondRefill,cleanCardBack,cardBacks} from './engine.mjs';
 
 const rooms=new Map(),limits=new Map(),identity=await accounts();
 const social=community(identity.db,identity);
@@ -61,13 +61,15 @@ const server=http.createServer(async(req,res)=>{try{
    return send(res,200,{code:r.code,token:p.token,name:p.name,recovered:false,spectating});
   }
   const p=r.players.find(p=>p.token===b.token&&p.userId===account.id&&!p.bot);if(!p)fail(400,'身份已失效，请重新加入');p.lastSeen=Date.now();p.name=account.nickname;p.cardBack=cleanCardBack(account.card_back);
-  if(['start','bot','removeBot','kick','reset','close'].includes(b.op)&&p.id!==r.host)fail(403,'只有房主可以操作');
+  if(['start','bot','removeBot','kick','reset','refillRespond','close'].includes(b.op)&&p.id!==r.host)fail(403,'只有房主可以操作');
   if(b.op==='start'){start(r);identity.audit(account.id,'startHand',r.code+':'+r.hand);}
   else if(b.op==='bot'){if(!['waiting','done'].includes(r.phase)||r.players.length>=MAX_PLAYERS)fail(400,'当前不能添加陪练');const botCount=r.players.filter(p=>p.bot).length;r.players.push(player(`陪练 ${botCount+1}`,true,'',cardBacks[(botCount+1)%cardBacks.length]));}
   else if(b.op==='removeBot'){if(!['waiting','done'].includes(r.phase))fail(400,'请在本手结束后移除陪练');const bot=r.players.find(q=>q.id===String(b.playerId)&&q.bot);if(!bot)fail(404,'陪练不存在');removePlayer(r,bot);}
   else if(b.op==='kick'){const target=r.players.find(q=>q.id===String(b.playerId));if(!target)fail(404,'玩家不存在');if(target.id===r.host)fail(400,'房主不能移出自己');if(['waiting','done'].includes(r.phase)){removePlayer(r,target);log(r,`${target.name} 已被房主移出房间`);}else target.pendingKick=true;}
   else if(b.op==='close'){rooms.delete(r.code);identity.audit(account.id,'closeRoom',r.code);return send(res,200,{closed:true});}
-  else if(b.op==='reset'){if(!['waiting','done'].includes(r.phase))fail(400,'请先完成本手牌');r.players.forEach(p=>p.stack=2000);r.phase='waiting';r.board=[];r.result=[];r.settlement=[];r.lastSettlement=null;r.players.forEach(p=>{p.cards=[];p.total=0;p.bet=0;p.action='等待开始';});}
+  else if(b.op==='reset'){if(!['waiting','done'].includes(r.phase))fail(400,'请先完成本手牌');r.players.forEach(p=>{p.stack=2000;p.issued=2000;p.refillCount=0;p.refillPending=false;});r.phase='waiting';r.board=[];r.result=[];r.settlement=[];r.lastSettlement=null;r.players.forEach(p=>{p.cards=[];p.total=0;p.bet=0;p.action='等待开始';});}
+  else if(b.op==='refillRequest'){requestRefill(r,p.id);identity.audit(account.id,'requestRefill',r.code);}
+  else if(b.op==='refillRespond'){const target=respondRefill(r,String(b.playerId),b.approved===true);identity.audit(account.id,b.approved===true?'approveRefill':'rejectRefill',`${r.code}:${target.userId||target.id}`);}
   else if(b.op==='act')act(r,p.id,b.type,b.amount);
   else if(b.op==='leave'){if(!['waiting','done'].includes(r.phase)&&p.inHand)fail(400,'请在本手结束后离开；关闭页面会自动超时行动');removePlayer(r,p);if(p.id===r.host)r.host=r.players.find(q=>!q.bot)?.id;if(!r.host)rooms.delete(r.code);identity.audit(account.id,'leaveRoom',r.code);return send(res,200,{left:true});}
   else if(b.op!=='state')fail(400,'无效请求');return send(res,200,view(r,p.id));

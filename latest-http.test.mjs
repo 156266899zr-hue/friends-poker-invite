@@ -34,6 +34,8 @@ test('最新版 HTTP 功能与账号审核并存：卡背、恢复、踢人和�
  assert.equal(recovered.token,member.token);assert.equal(recovered.recovered,true);
  memberView=(await f.request('/api',{...member,op:'state'},friend.cookie)).data;
  assert.equal(memberView.players.find(p=>p.id===memberView.me).cardBack,'ink');
+ assert.equal((await f.request('/api',{...member,op:'refillRequest'},friend.cookie)).data.error,'积分归零后才能申请补分');
+ assert.equal((await f.request('/api',{...member,op:'refillRespond',playerId:memberView.me,approved:true},friend.cookie)).status,403);
  assert.equal((await f.request('/api',{op:'join',code:host.code,cardBack:'classic'},duplicate.cookie)).status,400);
  for(let i=0;i<6;i++)assert.equal((await f.request('/api',{...host,op:'bot'},admin)).status,200);
  assert.equal((await f.request('/api',{...host,op:'bot'},admin)).status,400);
