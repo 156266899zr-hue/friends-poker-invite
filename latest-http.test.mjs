@@ -62,3 +62,33 @@ test('七个录制音效均可由浏览器加载',async t=>{
  }
  assert.equal((await fetch(`${f.base}/audio/voice/not-found.mp3`)).status,404);
 });
+
+test('进行中的牌局允许空位观战、下一手自动入座，满桌拒绝加入',async t=>{
+ const f=await fixture();t.after(()=>f.close());
+ const admin=(await f.request('/auth',{op:'login',username:'test_admin',password:f.secret})).cookie;
+ const friend=await approvedUser(f,admin,'active_friend','在局朋友');
+ const spectator=await approvedUser(f,admin,'spectator','观战朋友');
+ const overflow=await approvedUser(f,admin,'overflow','满桌朋友');
+ const host=(await f.request('/api',{op:'create',deviceId:'host'},admin)).data;
+ const member=(await f.request('/api',{op:'join',code:host.code,deviceId:'member'},friend.cookie)).data;
+ await f.request('/api',{...host,op:'start'},admin);
+ const joined=await f.request('/api',{op:'join',code:host.code,deviceId:'spectator'},spectator.cookie);
+ assert.equal(joined.status,200);assert.equal(joined.data.spectating,true);
+ let watched=(await f.request('/api',{...joined.data,op:'state'},spectator.cookie)).data;
+ const watcher=watched.players.find(p=>p.id===watched.me);
+ assert.equal(watcher.spectating,true);assert.equal(watcher.inHand,false);assert.deepEqual(watcher.cards,[]);assert.equal(watcher.action,'观战中，下手入座');
+ const hostState=(await f.request('/api',{...host,op:'state'},admin)).data;
+ const memberState=(await f.request('/api',{...member,op:'state'},friend.cookie)).data;
+ const actor=hostState.players[hostState.turn].id===hostState.me?{session:host,cookie:admin}:{session:member,cookie:friend.cookie};
+ assert.equal((await f.request('/api',{...actor.session,op:'act',type:'fold'},actor.cookie)).data.phase,'done');
+ await f.request('/api',{...host,op:'start'},admin);
+ watched=(await f.request('/api',{...joined.data,op:'state'},spectator.cookie)).data;
+ const seated=watched.players.find(p=>p.id===watched.me);assert.equal(seated.spectating,false);assert.equal(seated.inHand,true);assert.equal(seated.cards.length,2);
+ await f.request('/api',{...host,op:'close'},admin);
+ const fullHost=(await f.request('/api',{op:'create',deviceId:'full-host'},admin)).data;
+ await f.request('/api',{op:'join',code:fullHost.code,deviceId:'full-member'},friend.cookie);
+ for(let i=0;i<6;i++)assert.equal((await f.request('/api',{...fullHost,op:'bot'},admin)).status,200);
+ await f.request('/api',{...fullHost,op:'start'},admin);
+ const rejected=await f.request('/api',{op:'join',code:fullHost.code,deviceId:'overflow'},overflow.cookie);
+ assert.equal(rejected.status,400);assert.equal(rejected.data.error,'房间已满，无法加入房间');
+});

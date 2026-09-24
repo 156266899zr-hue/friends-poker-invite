@@ -1,6 +1,10 @@
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let user=null,ready=false,working=false,adminPending=false,authVersion=0;
+const tableSkins=['classic','ivory','midnight','ink'];
+let tableSkin=tableSkins.includes(localStorage.getItem('poker-table-skin'))?localStorage.getItem('poker-table-skin'):'classic';
+function applyTableSkin(){document.documentElement.dataset.tableSkin=tableSkin;for(const button of document.querySelectorAll('.table-skin-option')){const selected=button.dataset.tableSkin===tableSkin;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}}
+applyTableSkin();
 async function request(path,body){const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Object.assign(Error(data.error),{status:res.status});return data;}
 function message(text){$('accountMessage').textContent=text;}
 function renderAccountSkin(){for(const button of document.querySelectorAll('#passwordDialog .skin-option')){const selected=button.dataset.skin===(user?.card_back||'classic');button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}}
@@ -13,7 +17,7 @@ function apply(next,roomSession){
  $('accountBar').hidden=!user;$('accountName').textContent=user?`${user.nickname} · ${user.username}`:'';
  $('adminButton').hidden=!(active&&user?.role==='admin');
  $('logout').hidden=!active||!!roomSession;
- $('settingsButton').hidden=!active;$('rulesButton').hidden=!active;
+ $('friendsButton').hidden=!active;$('settingsButton').hidden=!active;$('rulesButton').hidden=!active;
  if(!active){$('game').hidden=true;$('lobby').hidden=true;if(!user)for(const d of document.querySelectorAll('dialog[open]'))d.close();}
  else if(!ready){ready=true;import('/app.js').catch(()=>message('游戏加载失败，请刷新页面'));}
  else if(changed||!wasActive)window.dispatchEvent(new Event('poker-account-ready'));
@@ -40,8 +44,9 @@ $('refreshApproval').onclick=refresh;
 $('logout').onclick=async()=>{authVersion++;try{await request('/auth',{op:'logout'});apply(null);message('已退出登录');}catch(e){message(e.message);}};
 window.addEventListener('poker-auth-expired',()=>refresh());
 setInterval(()=>{if(user&&!document.hidden)refresh();},15000);
-$('passwordButton').onclick=()=>{$('passwordMessage').textContent='';$('nicknameMessage').textContent='';$('skinMessage').textContent='';$('settingsNickname').value=user?.nickname||'';$('passwordForm').reset();for(const section of document.querySelectorAll('#passwordDialog details'))section.open=false;renderAccountSkin();$('passwordDialog').showModal();};
+$('passwordButton').onclick=()=>{$('passwordMessage').textContent='';$('nicknameMessage').textContent='';$('skinMessage').textContent='';$('tableSkinMessage').textContent='';$('settingsNickname').value=user?.nickname||'';$('passwordForm').reset();for(const section of document.querySelectorAll('#passwordDialog details'))section.open=false;renderAccountSkin();applyTableSkin();$('passwordDialog').showModal();};
 $('passwordDialog').addEventListener('click',async e=>{const button=e.target.closest('.skin-option');if(!button||button.disabled)return;button.disabled=true;try{const data=await request('/auth',{op:'skin',cardBack:button.dataset.skin});apply(data.user,data.roomSession);renderAccountSkin();$('skinMessage').textContent=`已使用${button.dataset.name}卡背，账号已同步`;}catch(err){$('skinMessage').textContent=err.message;}finally{button.disabled=false;}});
+$('passwordDialog').addEventListener('click',e=>{const button=e.target.closest('.table-skin-option');if(!button)return;tableSkin=button.dataset.tableSkin;localStorage.setItem('poker-table-skin',tableSkin);applyTableSkin();$('tableSkinMessage').textContent=`已使用${button.dataset.name}牌桌，仅当前设备可见`;});
 $('nicknameForm').onsubmit=async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{const data=await request('/auth',{op:'profile',nickname:$('settingsNickname').value});apply(data.user,data.roomSession);$('settingsNickname').value=data.user.nickname;$('nicknameMessage').textContent='昵称已保存';}catch(err){$('nicknameMessage').textContent=err.message;}finally{button.disabled=false;}};
 $('closePassword').onclick=()=>$('passwordDialog').close();
 $('passwordForm').onsubmit=async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{await request('/auth',{op:'password',oldPassword:$('oldPassword').value,password:$('newPassword').value});$('passwordForm').reset();$('passwordMessage').textContent='密码已修改，其他登录已撤销。';}catch(err){$('passwordMessage').textContent=err.message;}finally{button.disabled=false;}};

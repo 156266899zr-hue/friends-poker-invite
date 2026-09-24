@@ -55,10 +55,10 @@ const server=http.createServer(async(req,res)=>{try{
    const existing=r.players.find(p=>!p.bot&&p.userId===account.id);
    if(existing){existing.lastSeen=Date.now();existing.name=account.nickname;existing.cardBack=cleanCardBack(account.card_back);return send(res,200,{code:r.code,token:existing.token,name:existing.name,recovered:true});}
    if([...rooms.values()].some(table=>table.players.some(p=>p.userId===account.id)))fail(400,'你已在其他房间中，请先离开');
-   if(!['waiting','done'].includes(r.phase))fail(400,'对局进行中，请等本手结束再加入');if(r.players.length>=MAX_PLAYERS)fail(400,'房间已满（最多 8 人）');
+   if(r.players.length>=MAX_PLAYERS)fail(400,'房间已满，无法加入房间');
    if(r.players.some(p=>p.name.toLocaleLowerCase('zh-CN')===account.nickname.toLocaleLowerCase('zh-CN')))fail(400,'该昵称已在本房间使用，请在账号设置中修改');
-   const p=player(account.nickname,false,cleanDevice(b.deviceId),account.card_back);p.token=randomUUID();p.userId=account.id;r.players.push(p);identity.audit(account.id,'joinRoom',r.code);
-   return send(res,200,{code:r.code,token:p.token,name:p.name,recovered:false});
+   const spectating=!['waiting','done'].includes(r.phase),p=player(account.nickname,false,cleanDevice(b.deviceId),account.card_back);p.token=randomUUID();p.userId=account.id;if(spectating)p.action='观战中，下手入座';r.players.push(p);identity.audit(account.id,'joinRoom',r.code);
+   return send(res,200,{code:r.code,token:p.token,name:p.name,recovered:false,spectating});
   }
   const p=r.players.find(p=>p.token===b.token&&p.userId===account.id&&!p.bot);if(!p)fail(400,'身份已失效，请重新加入');p.lastSeen=Date.now();p.name=account.nickname;p.cardBack=cleanCardBack(account.card_back);
   if(['start','bot','removeBot','kick','reset','close'].includes(b.op)&&p.id!==r.host)fail(403,'只有房主可以操作');
@@ -69,7 +69,7 @@ const server=http.createServer(async(req,res)=>{try{
   else if(b.op==='close'){rooms.delete(r.code);identity.audit(account.id,'closeRoom',r.code);return send(res,200,{closed:true});}
   else if(b.op==='reset'){if(!['waiting','done'].includes(r.phase))fail(400,'请先完成本手牌');r.players.forEach(p=>p.stack=2000);r.phase='waiting';r.board=[];r.result=[];r.settlement=[];r.lastSettlement=null;r.players.forEach(p=>{p.cards=[];p.total=0;p.bet=0;p.action='等待开始';});}
   else if(b.op==='act')act(r,p.id,b.type,b.amount);
-  else if(b.op==='leave'){if(!['waiting','done'].includes(r.phase))fail(400,'请在本手结束后离开；关闭页面会自动超时行动');removePlayer(r,p);if(p.id===r.host)r.host=r.players.find(q=>!q.bot)?.id;if(!r.host)rooms.delete(r.code);identity.audit(account.id,'leaveRoom',r.code);return send(res,200,{left:true});}
+  else if(b.op==='leave'){if(!['waiting','done'].includes(r.phase)&&p.inHand)fail(400,'请在本手结束后离开；关闭页面会自动超时行动');removePlayer(r,p);if(p.id===r.host)r.host=r.players.find(q=>!q.bot)?.id;if(!r.host)rooms.delete(r.code);identity.audit(account.id,'leaveRoom',r.code);return send(res,200,{left:true});}
   else if(b.op!=='state')fail(400,'无效请求');return send(res,200,view(r,p.id));
  }
  const names={'/':'index.html','/voice-manager.js':'voice-manager.js','/community-ui.js':'community-ui.js','/app.js':'app.js','/account-ui.js':'account-ui.js','/style.css':'style.css','/audio/voice/check.mp3':'assets/audio/voice/check.mp3','/audio/voice/call.mp3':'assets/audio/voice/call.mp3','/audio/voice/raise.mp3':'assets/audio/voice/raise.mp3','/audio/voice/all_in.mp3':'assets/audio/voice/all_in.mp3','/audio/voice/fold.mp3':'assets/audio/voice/fold.mp3','/audio/voice/your_turn.mp3':'assets/audio/voice/your_turn.mp3','/audio/voice/showdown.mp3':'assets/audio/voice/showdown.mp3'};if(!names[url.pathname]){res.writeHead(404);return res.end('Not found');}

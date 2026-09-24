@@ -40,7 +40,7 @@ function settle(r){
 function street(r){
  if(r.phase==='river'){settle(r);return;}
  r.deck.pop();if(r.phase==='preflop'){r.phase='flop';r.board.push(r.deck.pop(),r.deck.pop(),r.deck.pop());}else{r.phase=r.phase==='flop'?'turn':'river';r.board.push(r.deck.pop());}
- log(r,`公共牌：${r.board.map(c=>['♠','♥','♦','♣'][Math.floor(c/13)]+({11:'J',12:'Q',13:'K',14:'A'}[c%13+2]||c%13+2)).join(' ')}`);for(const p of r.players){p.bet=0;p.lastHigh=null;p.action=p.folded?'已弃牌':p.inHand?(p.stack===0?'已全下':'等待行动'):'未参与';}r.high=0;r.minRaise=20;r.pending=r.players.filter(can).map(p=>p.id);advance(r,r.dealer);
+ log(r,`公共牌：${r.board.map(c=>['♠','♥','♦','♣'][Math.floor(c/13)]+({11:'J',12:'Q',13:'K',14:'A'}[c%13+2]||c%13+2)).join(' ')}`);for(const p of r.players){p.bet=0;p.lastHigh=null;p.action=p.folded?'已弃牌':p.inHand?(p.stack===0?'已全下':'等待行动'):'观战中，下手入座';}r.high=0;r.minRaise=20;r.pending=r.players.filter(can).map(p=>p.id);advance(r,r.dealer);
 }
 function advance(r,from){
  if(r.players.filter(active).length===1){settle(r);return;}
@@ -74,4 +74,4 @@ export function act(r,id,type,amount){
  }else throw Error('无效操作');
  log(r,`${p.name}：${p.action}`);r.pending=r.pending.filter(x=>x!==id);advance(r,r.turn);
 }
-export function view(r,id){const p=r.players.find(p=>p.id===id),now=Date.now();return {code:r.code,host:r.host,phase:r.phase,hand:r.hand,board:r.board,dealer:r.dealer,turn:r.turn,deadline:r.deadline,expiresAt:r.expiresAt||0,high:r.high,pot:r.players.reduce((s,p)=>s+p.total,0),result:r.result,settlement:r.phase==='done'?r.settlement||[]:[],lastSettlement:r.lastSettlement||null,logs:r.logs,history:r.history||[],me:id,legal:p?legal(r,p):null,players:r.players.map(p=>({id:p.id,name:p.name,bot:p.bot,cardBack:cleanCardBack(p.cardBack),online:p.bot||now-p.lastSeen<5000,pendingKick:!!p.pendingKick,stack:p.stack,bet:p.bet,total:p.total,inHand:p.inHand,folded:p.folded,action:p.action,cards:p.id===id||(r.phase==='done'&&r.reveal&&active(p))?p.cards:p.cards.map(()=>-1)}))};}
+export function view(r,id){const p=r.players.find(p=>p.id===id),now=Date.now(),playing=!['waiting','done'].includes(r.phase);return {code:r.code,host:r.host,phase:r.phase,hand:r.hand,board:r.board,dealer:r.dealer,turn:r.turn,deadline:r.deadline,expiresAt:r.expiresAt||0,high:r.high,pot:r.players.reduce((s,p)=>s+p.total,0),result:r.result,settlement:r.phase==='done'?r.settlement||[]:[],lastSettlement:r.lastSettlement||null,logs:r.logs,history:r.history||[],me:id,legal:p?legal(r,p):null,players:r.players.map(p=>({id:p.id,name:p.name,bot:p.bot,cardBack:cleanCardBack(p.cardBack),online:p.bot||now-p.lastSeen<5000,pendingKick:!!p.pendingKick,spectating:playing&&!p.inHand,stack:p.stack,bet:p.bet,total:p.total,inHand:p.inHand,folded:p.folded,action:p.action,cards:p.id===id||(r.phase==='done'&&r.reveal&&active(p))?p.cards:p.cards.map(()=>-1)}))};}
