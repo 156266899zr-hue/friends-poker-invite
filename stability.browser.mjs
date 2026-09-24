@@ -1,0 +1,22 @@
+import {createRequire} from 'node:module';
+import assert from 'node:assert/strict';
+import {fixture} from './test-server.mjs';
+
+const {chromium}=createRequire(import.meta.url)('C:/Users/Ziran/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const f=await fixture();let browser;
+try{
+ browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});
+ const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{
+  window.__audioTimeline=[];window.__audioObjects=0;window.Audio=class extends EventTarget{constructor(src=''){super();this.src=src;this.volume=1;this.currentTime=0;window.__audioObjects++;}load(){}pause(){}play(){window.__audioTimeline.push(this.src.split('/').pop());queueMicrotask(()=>this.dispatchEvent(new Event('ended')));return Promise.resolve();}};
+  const original=window.fetch.bind(window);window.__stateRequests=0;window.__activeStateRequests=0;window.__maxActiveStateRequests=0;
+  window.fetch=async(input,init={})=>{let stateRequest=false;try{stateRequest=new URL(typeof input==='string'?input:input.url,location.href).pathname==='/api'&&JSON.parse(init.body||'{}').op==='state';}catch{}if(stateRequest){window.__stateRequests++;window.__activeStateRequests++;window.__maxActiveStateRequests=Math.max(window.__maxActiveStateRequests,window.__activeStateRequests);}try{return await original(input,init);}finally{if(stateRequest)window.__activeStateRequests--;}};
+ });
+ await page.goto(f.base);await page.locator('#username').fill('test_admin');await page.locator('#password').fill(f.secret);await page.locator('#authSubmit').click();await page.locator('#create').click();await page.locator('#addbot').click();await page.locator('#start').click();await page.locator('#actions').waitFor({state:'visible'});await page.locator('#call').click();
+ await page.waitForTimeout(150);await page.evaluate(()=>{window.__audioTimeline=[];window.__seatMutations=0;window.__historyBefore=document.querySelectorAll('#logs .history-event').length;new MutationObserver(records=>window.__seatMutations+=records.length).observe(document.querySelector('#seats'),{childList:true});Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));window.__hiddenRequestCount=window.__stateRequests;});
+ await page.waitForTimeout(2200);const hidden=await page.evaluate(()=>({before:window.__hiddenRequestCount,after:window.__stateRequests,audio:window.__audioTimeline.length}));assert.equal(hidden.after,hidden.before,'后台不应继续牌桌轮询');assert.equal(hidden.audio,0,'后台不应播放语音');
+ await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(800);
+ const resumed=await page.evaluate(()=>({audio:window.__audioTimeline.length,mutations:window.__seatMutations,audioObjects:window.__audioObjects,maxActive:window.__maxActiveStateRequests,requests:window.__stateRequests,historyBefore:window.__historyBefore,historyAfter:document.querySelectorAll('#logs .history-event').length}));assert(resumed.historyAfter>resumed.historyBefore,'返回前台后应取得服务器最新行动历史');assert.equal(resumed.audio,0,'返回前台不得补播后台历史语音');assert(resumed.mutations<=1,`恢复后整桌重复渲染 ${resumed.mutations} 次`);assert.equal(resumed.audioObjects,7,'音频对象必须全程复用');assert.equal(resumed.maxActive,1,'任何时候只允许一个状态请求');
+ const beforeCycles=resumed.requests;for(let i=0;i<3;i++){await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(100);await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));});await page.waitForTimeout(650);}const cycles=await page.evaluate(()=>({requests:window.__stateRequests,active:window.__activeStateRequests,maxActive:window.__maxActiveStateRequests,audio:[...window.__audioTimeline]}));assert(cycles.requests-beforeCycles<=6,'反复切后台产生了重复重连任务');assert(cycles.active<=1);assert.equal(cycles.maxActive,1);assert(cycles.audio.length<=2,'恢复过程重复播放了同一批事件');assert.deepEqual(errors,[]);
+ console.log('PASS background pause, single reconnect, silent authoritative resume, render dedupe, audio reuse');
+}finally{await browser?.close();await f.close();}

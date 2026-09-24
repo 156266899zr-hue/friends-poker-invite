@@ -1,11 +1,11 @@
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let user=null,ready=false,working=false,adminPending=false,authVersion=0;
+let user=null,ready=false,working=false,adminPending=false,authVersion=0,accountTimer=0,adminTimer=0,refreshController=null;
 const tableSkins=['classic','ivory','midnight','ink'];
 let tableSkin=tableSkins.includes(localStorage.getItem('poker-table-skin'))?localStorage.getItem('poker-table-skin'):'classic';
 function applyTableSkin(){document.documentElement.dataset.tableSkin=tableSkin;for(const button of document.querySelectorAll('.table-skin-option')){const selected=button.dataset.tableSkin===tableSkin;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}}
 applyTableSkin();
-async function request(path,body){const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await res.json();if(!res.ok)throw Object.assign(Error(data.error),{status:res.status});return data;}
+async function request(path,body,signal){const res=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});const data=await res.json();if(!res.ok)throw Object.assign(Error(data.error),{status:res.status});return data;}
 function message(text){$('accountMessage').textContent=text;}
 function renderAccountSkin(){for(const button of document.querySelectorAll('#passwordDialog .skin-option')){const selected=button.dataset.skin===(user?.card_back||'classic');button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected));}}
 function apply(next,roomSession){
@@ -22,8 +22,10 @@ function apply(next,roomSession){
  else if(!ready){ready=true;import('/app.js').catch(()=>message('游戏加载失败，请刷新页面'));}
  else if(changed||!wasActive)window.dispatchEvent(new Event('poker-account-ready'));
  if(active){$('nickname').value=user.nickname;$('nickname').readOnly=true;}
+ scheduleAccountRefresh();
 }
-async function refresh(){const version=authVersion;try{const result=await request('/auth',{op:'me'});if(version!==authVersion)return;apply(result.user,result.roomSession);}catch(e){if(version!==authVersion)return;if(e.status===401||e.status===403){apply(null);message(e.status===403?e.message:'请登录已获批准的账号，或注册后等待房主审核。');}else message('无法连接服务器，请稍后重试');}}
+async function refresh({restart=false}={}){if(restart&&refreshController)refreshController.abort();else if(refreshController)return;const version=authVersion,controller=new AbortController();refreshController=controller;try{const result=await request('/auth',{op:'me'},controller.signal);if(version!==authVersion)return;apply(result.user,result.roomSession);}catch(e){if(e.name==='AbortError'||version!==authVersion)return;if(e.status===401||e.status===403){apply(null);message(e.status===403?e.message:'请登录已获批准的账号，或注册后等待房主审核。');}else message('无法连接服务器，请稍后重试');}finally{if(refreshController===controller)refreshController=null;}}
+function scheduleAccountRefresh(delay=15000){clearTimeout(accountTimer);accountTimer=0;if(user&&!document.hidden)accountTimer=setTimeout(async()=>{await refresh();scheduleAccountRefresh();},delay);}
 let authMode='login';
 function setAuthMode(mode){
  authMode=mode;const registration=mode==='register';
@@ -43,7 +45,6 @@ $('authForm').onsubmit=async e=>{e.preventDefault();if(working)return;working=tr
 $('refreshApproval').onclick=refresh;
 $('logout').onclick=async()=>{authVersion++;try{await request('/auth',{op:'logout'});apply(null);message('已退出登录');}catch(e){message(e.message);}};
 window.addEventListener('poker-auth-expired',()=>refresh());
-setInterval(()=>{if(user&&!document.hidden)refresh();},15000);
 $('passwordButton').onclick=()=>{$('passwordMessage').textContent='';$('nicknameMessage').textContent='';$('skinMessage').textContent='';$('tableSkinMessage').textContent='';$('settingsNickname').value=user?.nickname||'';$('passwordForm').reset();for(const section of document.querySelectorAll('#passwordDialog details'))section.open=false;renderAccountSkin();applyTableSkin();$('passwordDialog').showModal();};
 $('passwordDialog').addEventListener('click',async e=>{const button=e.target.closest('.skin-option');if(!button||button.disabled)return;button.disabled=true;try{const data=await request('/auth',{op:'skin',cardBack:button.dataset.skin});apply(data.user,data.roomSession);renderAccountSkin();$('skinMessage').textContent=`已使用${button.dataset.name}卡背，账号已同步`;}catch(err){$('skinMessage').textContent=err.message;}finally{button.disabled=false;}});
 $('passwordDialog').addEventListener('click',e=>{const button=e.target.closest('.table-skin-option');if(!button)return;tableSkin=button.dataset.tableSkin;localStorage.setItem('poker-table-skin',tableSkin);applyTableSkin();$('tableSkinMessage').textContent=`已使用${button.dataset.name}牌桌，仅当前设备可见`;});
@@ -65,8 +66,8 @@ async function loadAdmin(){
  $('adminMessage').textContent='已更新 '+new Date().toLocaleTimeString();
  }catch(e){$('adminMessage').textContent=e.message;}finally{adminPending=false;}
 }
-$('adminButton').onclick=()=>{for(const section of $('adminDialog').querySelectorAll('.admin-settings-menu details'))section.open=false;$('adminDialog').showModal();loadAdmin();};
-$('closeAdmin').onclick=()=>$('adminDialog').close();$('refreshAdmin').onclick=loadAdmin;
+$('adminButton').onclick=()=>{for(const section of $('adminDialog').querySelectorAll('.admin-settings-menu details'))section.open=false;$('adminDialog').showModal();loadAdmin().finally(scheduleAdminRefresh);};
+$('closeAdmin').onclick=()=>{$('adminDialog').close();clearTimeout(adminTimer);adminTimer=0;};$('refreshAdmin').onclick=loadAdmin;
 $('adminDialog').addEventListener('click',async e=>{
  const button=e.target.closest('button[data-op]');if(!button||button.disabled)return;
  const {op,id,status,code}=button.dataset;
@@ -75,5 +76,6 @@ $('adminDialog').addEventListener('click',async e=>{
  try{await request('/admin-api',{op,userId:id,status,code});await loadAdmin();}catch(err){$('adminMessage').textContent=err.message;}finally{button.disabled=false;}
 });
 $('limitForm').onsubmit=async e=>{e.preventDefault();try{await request('/admin-api',{op:'limit',limit:Number($('registrationLimit').value)});await loadAdmin();}catch(err){$('adminMessage').textContent=err.message;}};
-setInterval(()=>{if($('adminDialog').open&&!document.hidden)loadAdmin();},10000);
+function scheduleAdminRefresh(){clearTimeout(adminTimer);adminTimer=0;if($('adminDialog').open&&!document.hidden)adminTimer=setTimeout(async()=>{await loadAdmin();scheduleAdminRefresh();},10000);}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(accountTimer);accountTimer=0;clearTimeout(adminTimer);adminTimer=0;refreshController?.abort();}else{refresh({restart:true});scheduleAdminRefresh();}});window.addEventListener('pagehide',()=>{clearTimeout(accountTimer);clearTimeout(adminTimer);refreshController?.abort();});
 refresh();
