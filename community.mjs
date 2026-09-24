@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {fail} from './accounts.mjs';
-export const gameVersion='1.3.0';
+export const gameVersion='1.3.1';
 export function community(db,{requireUser,requireAdmin,rate}){
  db.exec(`CREATE TABLE IF NOT EXISTS friendships(id TEXT PRIMARY KEY, requester TEXT NOT NULL REFERENCES users(id), receiver TEXT NOT NULL REFERENCES users(id), pair TEXT UNIQUE NOT NULL, status TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS feedback(id TEXT PRIMARY KEY,userId TEXT NOT NULL REFERENCES users(id),username TEXT NOT NULL,type TEXT NOT NULL,content TEXT NOT NULL,roomId TEXT,handId INTEGER,gameVersion TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'new',adminNote TEXT NOT NULL DEFAULT '',createdAt INTEGER NOT NULL,updatedAt INTEGER NOT NULL);`);

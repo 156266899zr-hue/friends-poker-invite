@@ -62,3 +62,7 @@ node browser-test.mjs
 - 服务端历史事件增加唯一 eventId 与递增 sequence。对局状态轮询缩短至 250 毫秒，语音文件提前加载并复用；连续动作会立即用最新有效语音替换旧语音。动作结束后才播放仍有效的回合提醒。超过 2.5 秒的动作不补播。离开、退出、后台、关闭声音会停止当前语音。开发排查可在 localStorage 设置 poker-voice-debug=1 查看事件、去重、丢弃与打断日志。
 
 验证：`npm test`；`node browser-test.mjs`；`node mobile-community.browser.mjs`；`node spectator.browser.mjs`；`node audio-timing.browser.mjs`。自动浏览器脚本默认使用本机 Chrome 与 Codex 打包的 Playwright，可按环境调整路径。核心牌局规则未修改。浏览器自动播放限制仍由用户手势解锁；没有新增独立 SFX 素材或通道。
+
+### 1.3.1 牌桌视觉优化
+
+四款牌桌统一改为低对比、干净的中央毡面，主题纹样集中在桌沿和内外双层描边。象牙鎏金使用镶边，午夜星辰只在外沿保留星点，东方水墨使用外沿墨纹，公共牌、底牌和底池区域不再叠加装饰图案。
